@@ -90,7 +90,6 @@ export interface DashboardMetrics {
   totalTests: number;
   passedTests: number;
   failedTests: number;
-  skippedTests: number;
   passRate: number;
   testsPerDay: { date: string; count: number }[];
   hoursPerDay: { date: string; hours: number }[];

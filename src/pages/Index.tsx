@@ -58,7 +58,7 @@ const Index = () => {
         </div>
 
         {/* Test Results Grid */}
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-3">
           <MetricsCard
             title="Passed Tests"
             value={metrics.passedTests}
@@ -69,16 +69,9 @@ const Index = () => {
           <MetricsCard
             title="Failed Tests"
             value={metrics.failedTests}
-            subtitle={`${((metrics.failedTests / metrics.totalTests) * 100).toFixed(1)}% failure rate`}
+            subtitle={`${(100 - metrics.passRate).toFixed(1)}% failure rate`}
             icon={<XCircle className="h-4 w-4" />}
             variant="destructive"
-          />
-          <MetricsCard
-            title="Skipped Tests"
-            value={metrics.skippedTests}
-            subtitle={`${((metrics.skippedTests / metrics.totalTests) * 100).toFixed(1)}% skip rate`}
-            icon={<TestTube className="h-4 w-4" />}
-            variant="warning"
           />
           <MetricsCard
             title="Average Test Duration"

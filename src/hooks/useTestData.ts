@@ -6,7 +6,7 @@ import { addDays, format, isWithinInterval } from "date-fns";
 const generateMockData = (): TestEntry[] => {
   const mockData: TestEntry[] = [];
   const testTypes = ["decabit", "telenerg", "mcb", "rcd"];
-  const outcomes = ["passed", "failed", "skipped"] as const;
+  const outcomes = ["passed", "failed"] as const;
   
   for (let i = 0; i < 100; i++) {
     const testType = testTypes[Math.floor(Math.random() * testTypes.length)];
@@ -26,7 +26,7 @@ const generateMockData = (): TestEntry[] => {
       outcome,
       passed: outcome === "passed",
       failed: outcome === "failed",
-      skipped: outcome === "skipped",
+      skipped: false,
       error: false,
       results: [],
       dataset: [],
@@ -94,8 +94,7 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
     const totalTests = filteredData.length;
     const passedTests = filteredData.filter(test => test.passed).length;
     const failedTests = filteredData.filter(test => test.failed).length;
-    const skippedTests = filteredData.filter(test => test.skipped).length;
-    const passRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
+    const passRate = (passedTests + failedTests) > 0 ? (passedTests / (passedTests + failedTests)) * 100 : 0;
 
     // Group by day for charts
     const dayMap = new Map<string, { count: number; hours: number }>();
@@ -124,7 +123,6 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
       totalTests,
       passedTests,
       failedTests,
-      skippedTests,
       passRate: Math.round(passRate * 100) / 100,
       testsPerDay,
       hoursPerDay

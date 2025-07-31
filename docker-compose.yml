@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5010:5010"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI:-mongodb://localhost:27017/testdb}
+    restart: unless-stopped
+    
+  # Optional MongoDB service for local development
+  mongodb:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=testdb
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    profiles:
+      - local
+
+volumes:
+  mongodb_data:
