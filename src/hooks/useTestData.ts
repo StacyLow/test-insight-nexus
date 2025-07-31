@@ -87,13 +87,14 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
       
       return getTestType(test.name) === testType;
     });
-  }, [mockData, dateRange, testType]);
+  }, [mockData, dateRange.from, dateRange.to, testType]);
 
   const metrics = useMemo((): DashboardMetrics => {
     const totalHours = filteredData.reduce((sum, test) => sum + (test.duration / 3600), 0);
     const totalTests = filteredData.length;
     const passedTests = filteredData.filter(test => test.passed).length;
     const failedTests = filteredData.filter(test => test.failed).length;
+    const skippedTests = filteredData.filter(test => test.skipped).length;
     const passRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
 
     // Group by day for charts
@@ -123,6 +124,7 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
       totalTests,
       passedTests,
       failedTests,
+      skippedTests,
       passRate: Math.round(passRate * 100) / 100,
       testsPerDay,
       hoursPerDay

@@ -28,32 +28,37 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Filters */}
-        <div className="max-w-md">
+        {/* Main Grid: Filters + Metrics */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Filters */}
           <DashboardFilters
             testType={testType}
             onTestTypeChange={setTestType}
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
           />
+          
+          {/* Key Metrics */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            <MetricsCard
+              title="Total Tests"
+              value={metrics.totalTests}
+              subtitle="Tests executed in period"
+              icon={<TestTube className="h-4 w-4" />}
+              variant="default"
+            />
+            <MetricsCard
+              title="Total Testing Hours"
+              value={`${metrics.totalHours}h`}
+              subtitle="Cumulative test execution time"
+              icon={<Clock className="h-4 w-4" />}
+              variant="default"
+            />
+          </div>
         </div>
 
-        {/* Metrics Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <MetricsCard
-            title="Total Testing Hours"
-            value={`${metrics.totalHours}h`}
-            subtitle="Cumulative test execution time"
-            icon={<Clock className="h-4 w-4" />}
-            variant="default"
-          />
-          <MetricsCard
-            title="Total Tests"
-            value={metrics.totalTests}
-            subtitle="Tests executed in period"
-            icon={<TestTube className="h-4 w-4" />}
-            variant="default"
-          />
+        {/* Test Results Grid */}
+        <div className="grid gap-6 md:grid-cols-4">
           <MetricsCard
             title="Passed Tests"
             value={metrics.passedTests}
@@ -64,9 +69,23 @@ const Index = () => {
           <MetricsCard
             title="Failed Tests"
             value={metrics.failedTests}
-            subtitle={`${(100 - metrics.passRate).toFixed(1)}% failure rate`}
+            subtitle={`${((metrics.failedTests / metrics.totalTests) * 100).toFixed(1)}% failure rate`}
             icon={<XCircle className="h-4 w-4" />}
             variant="destructive"
+          />
+          <MetricsCard
+            title="Skipped Tests"
+            value={metrics.skippedTests}
+            subtitle={`${((metrics.skippedTests / metrics.totalTests) * 100).toFixed(1)}% skip rate`}
+            icon={<TestTube className="h-4 w-4" />}
+            variant="warning"
+          />
+          <MetricsCard
+            title="Average Test Duration"
+            value={`${metrics.totalTests > 0 ? (metrics.totalHours / metrics.totalTests * 60).toFixed(1) : 0}min`}
+            subtitle="Mean execution time per test"
+            icon={<TrendingUp className="h-4 w-4" />}
+            variant="default"
           />
         </div>
 
@@ -84,15 +103,8 @@ const Index = () => {
           />
         </div>
 
-        {/* Additional Metrics Row */}
-        <div className="grid gap-6 md:grid-cols-3">
-          <MetricsCard
-            title="Average Test Duration"
-            value={`${metrics.totalTests > 0 ? (metrics.totalHours / metrics.totalTests * 60).toFixed(1) : 0}min`}
-            subtitle="Mean execution time per test"
-            icon={<TrendingUp className="h-4 w-4" />}
-            variant="default"
-          />
+        {/* Daily Averages */}
+        <div className="grid gap-6 md:grid-cols-2">
           <MetricsCard
             title="Tests per Day"
             value={`${metrics.testsPerDay.length > 0 ? (metrics.totalTests / metrics.testsPerDay.length).toFixed(1) : 0}`}
