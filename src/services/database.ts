@@ -1,15 +1,18 @@
-import { MongoClient, Db } from 'mongodb';
+import { MongoClient, Db, Collection } from 'mongodb';
 import { TestEntry } from '@/types/test-data';
+import { config } from '@/lib/config';
 
 class DatabaseService {
   private client: MongoClient | null = null;
   private db: Db | null = null;
+  private isConnected = false;
 
-  async connect(uri: string = 'mongodb://localhost:27017'): Promise<void> {
+  async connect(): Promise<void> {
     try {
-      this.client = new MongoClient(uri);
+      this.client = new MongoClient(config.mongodb.uri);
       await this.client.connect();
-      this.db = this.client.db('testdb');
+      this.db = this.client.db(config.mongodb.database);
+      this.isConnected = true;
       console.log('Connected to MongoDB');
     } catch (error) {
       console.error('Failed to connect to MongoDB:', error);
@@ -22,6 +25,8 @@ class DatabaseService {
       await this.client.close();
       this.client = null;
       this.db = null;
+      this.isConnected = false;
+      console.log('Disconnected from MongoDB');
     }
   }
 
@@ -30,12 +35,12 @@ class DatabaseService {
     endDate: Date,
     testType?: string
   ): Promise<TestEntry[]> {
-    if (!this.db) {
-      throw new Error('Database not connected');
+    if (!this.isConnected || !this.db) {
+      await this.connect();
     }
 
     try {
-      const collection = this.db.collection<TestEntry>('test_results');
+      const collection: Collection<TestEntry> = this.db!.collection(config.mongodb.collection);
       
       const query: any = {
         start: {
@@ -70,15 +75,16 @@ class DatabaseService {
   }
 
   async insertTestResult(testResult: TestEntry): Promise<void> {
-    if (!this.db) {
-      throw new Error('Database not connected');
+    if (!this.isConnected || !this.db) {
+      await this.connect();
     }
 
     try {
-      const collection = this.db.collection<TestEntry>('test_results');
+      const collection: Collection<TestEntry> = this.db!.collection(config.mongodb.collection);
       await collection.insertOne(testResult);
+      console.log('Test result inserted successfully');
     } catch (error) {
-      console.error('Error inserting test result:', error);
+      console.error('Failed to insert test result:', error);
       throw error;
     }
   }

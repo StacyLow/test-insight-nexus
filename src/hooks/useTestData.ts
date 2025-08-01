@@ -1,6 +1,9 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { TestEntry, TestType, DashboardMetrics, DateRange } from "@/types/test-data";
 import { addDays, format, isWithinInterval } from "date-fns";
+import { databaseService } from "@/services/database";
+import { config } from "@/lib/config";
 
 // Mock data generator - replace with actual API calls
 const generateMockData = (): TestEntry[] => {
@@ -70,11 +73,18 @@ export const getTestType = (testName: string): TestType => {
   return "Meter Test"; // default
 };
 
-export const useTestData = (dateRange: DateRange, testType: TestType) => {
-  const [mockData] = useState<TestEntry[]>(() => generateMockData());
-
-  const filteredData = useMemo(() => {
-    return mockData.filter(test => {
+// Fetch real data from MongoDB
+const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<TestEntry[]> => {
+  try {
+    const results = await databaseService.getTestResults(
+      dateRange.from,
+      dateRange.to,
+      testType === "All" ? undefined : testType
+    );
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch real data, falling back to mock data:', error);
+    return generateMockData().filter(test => {
       const testDate = new Date(test.start * 1000);
       const isInDateRange = isWithinInterval(testDate, {
         start: dateRange.from,
@@ -82,12 +92,44 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
       });
       
       if (!isInDateRange) return false;
-      
       if (testType === "All") return true;
-      
       return getTestType(test.name) === testType;
     });
-  }, [mockData, dateRange.from, dateRange.to, testType]);
+  }
+};
+
+export const useTestData = (dateRange: DateRange, testType: TestType) => {
+  const [mockData] = useState<TestEntry[]>(() => generateMockData());
+
+  // Use React Query for data fetching
+  const { data: realData, isLoading, error } = useQuery({
+    queryKey: ['testData', dateRange.from.toISOString(), dateRange.to.toISOString(), testType],
+    queryFn: () => fetchRealData(dateRange, testType),
+    enabled: !config.isDevelopment,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1
+  });
+
+  const filteredData = useMemo(() => {
+    // Use real data in production, mock data in development
+    const sourceData = config.isDevelopment ? mockData : (realData || []);
+    
+    if (config.isDevelopment) {
+      return sourceData.filter(test => {
+        const testDate = new Date(test.start * 1000);
+        const isInDateRange = isWithinInterval(testDate, {
+          start: dateRange.from,
+          end: dateRange.to
+        });
+        
+        if (!isInDateRange) return false;
+        if (testType === "All") return true;
+        return getTestType(test.name) === testType;
+      });
+    }
+    
+    return sourceData;
+  }, [mockData, realData, dateRange.from, dateRange.to, testType]);
 
   const metrics = useMemo((): DashboardMetrics => {
     const totalHours = filteredData.reduce((sum, test) => sum + (test.duration / 3600), 0);
@@ -129,5 +171,10 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
     };
   }, [filteredData]);
 
-  return { data: filteredData, metrics };
+  return { 
+    data: filteredData, 
+    metrics, 
+    isLoading: !config.isDevelopment && isLoading,
+    error: !config.isDevelopment ? error : null
+  };
 };
