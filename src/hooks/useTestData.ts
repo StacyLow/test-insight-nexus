@@ -73,18 +73,31 @@ export const getTestType = (testName: string): TestType => {
   return "Meter Test"; // default
 };
 
-// Fetch real data from MongoDB
+// Real data fetching with fallback and debugging
 const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<TestEntry[]> => {
+  console.log('[useTestData] Attempting to fetch real data', {
+    dateRange,
+    testType,
+    useRealData: config.useRealData,
+    isDevelopment: config.isDevelopment,
+    debugDatabase: config.debugDatabase
+  });
+
   try {
     const results = await databaseService.getTestResults(
       dateRange.from,
       dateRange.to,
       testType === "All" ? undefined : testType
     );
+    console.log(`[useTestData] Successfully fetched ${results.length} real entries`);
     return results;
   } catch (error) {
-    console.error('Failed to fetch real data, falling back to mock data:', error);
-    return generateMockData().filter(test => {
+    console.error('[useTestData] Failed to fetch real data, falling back to mock data:', error);
+    console.warn('[useTestData] Note: MongoDB client cannot run in browser. Consider using a backend API or Supabase.');
+    
+    // Fallback to mock data and filter it
+    const mockData = generateMockData();
+    const filteredMockData = mockData.filter(test => {
       const testDate = new Date(test.start * 1000);
       const isInDateRange = isWithinInterval(testDate, {
         start: dateRange.from,
@@ -95,40 +108,59 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
       if (testType === "All") return true;
       return getTestType(test.name) === testType;
     });
+    console.log(`[useTestData] Using ${filteredMockData.length} filtered mock entries as fallback`);
+    return filteredMockData;
   }
 };
 
 export const useTestData = (dateRange: DateRange, testType: TestType) => {
   const [mockData] = useState<TestEntry[]>(() => generateMockData());
+  
+  console.log('[useTestData] Hook called', {
+    dateRange,
+    testType,
+    useRealData: config.useRealData,
+    isDevelopment: config.isDevelopment
+  });
 
-  // Use React Query for data fetching
+  // Fetch real data using React Query (enabled based on config)
   const { data: realData, isLoading, error } = useQuery({
     queryKey: ['testData', dateRange.from.toISOString(), dateRange.to.toISOString(), testType],
     queryFn: () => fetchRealData(dateRange, testType),
-    enabled: !config.isDevelopment,
+    enabled: config.useRealData, // Controlled by environment variable
     staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 1
   });
 
   const filteredData = useMemo(() => {
-    // Use real data in production, mock data in development
-    const sourceData = config.isDevelopment ? mockData : (realData || []);
+    // Use real data if available and enabled, otherwise use mock data
+    const sourceData = config.useRealData && realData ? realData : mockData;
+    const isUsingRealData = config.useRealData && realData;
     
-    if (config.isDevelopment) {
-      return sourceData.filter(test => {
-        const testDate = new Date(test.start * 1000);
-        const isInDateRange = isWithinInterval(testDate, {
-          start: dateRange.from,
-          end: dateRange.to
-        });
-        
-        if (!isInDateRange) return false;
-        if (testType === "All") return true;
-        return getTestType(test.name) === testType;
+    console.log('[useTestData] Data source decision', {
+      useRealData: config.useRealData,
+      hasRealData: !!realData,
+      realDataCount: realData?.length || 0,
+      mockDataCount: mockData.length,
+      isUsingRealData,
+      sourceDataCount: sourceData.length
+    });
+    
+    const filtered = sourceData.filter(test => {
+      const testDate = new Date(test.start * 1000);
+      const isInDateRange = isWithinInterval(testDate, {
+        start: dateRange.from,
+        end: dateRange.to
       });
-    }
+      
+      if (!isInDateRange) return false;
+      if (testType === "All") return true;
+      return getTestType(test.name) === testType;
+    });
     
-    return sourceData;
+    console.log(`[useTestData] Filtered to ${filtered.length} entries for display`);
+    return filtered;
   }, [mockData, realData, dateRange.from, dateRange.to, testType]);
 
   const metrics = useMemo((): DashboardMetrics => {
@@ -174,7 +206,7 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
   return { 
     data: filteredData, 
     metrics, 
-    isLoading: !config.isDevelopment && isLoading,
-    error: !config.isDevelopment ? error : null
+    isLoading: config.useRealData && isLoading,
+    error: config.useRealData ? error : null
   };
 };
