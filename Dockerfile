@@ -49,7 +49,7 @@ RUN echo '#!/bin/sh' > /start.sh && \
     chmod +x /start.sh
 
 # Expose ports
-EXPOSE 8080 3001
+EXPOSE 5010 3001
 
 # Start both services
 CMD ["/start.sh"]
