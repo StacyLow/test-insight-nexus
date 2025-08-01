@@ -17,17 +17,39 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Production stage with Node.js for backend and nginx for frontend
+FROM node:18-alpine
 
-# Copy built app to nginx
+# Install nginx
+RUN apk add --no-cache nginx
+
+# Set working directory
+WORKDIR /app
+
+# Copy backend files
+COPY server/ ./server/
+COPY package*.json ./
+
+# Install production dependencies
+RUN npm ci --only=production
+
+# Copy built frontend to nginx directory
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port
-EXPOSE 5010
+# Create nginx directories
+RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Create startup script
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'nginx &' >> /start.sh && \
+    echo 'node server/app.js' >> /start.sh && \
+    chmod +x /start.sh
+
+# Expose ports
+EXPOSE 8080 3001
+
+# Start both services
+CMD ["/start.sh"]

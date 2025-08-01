@@ -4,10 +4,16 @@ services:
   app:
     build: .
     ports:
-      - "5010:5010"
+      - "8080:8080"   # Frontend
+      - "3001:3001"   # Backend API
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI:-mongodb://localhost:27017/testdb}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/testdb}
+      - MONGODB_DATABASE_NAME=testdb
+      - MONGODB_COLLECTION_NAME=test_results
+      - FRONTEND_URL=http://localhost:8080
+    depends_on:
+      - mongodb
     restart: unless-stopped
     
   # Optional MongoDB service for local development

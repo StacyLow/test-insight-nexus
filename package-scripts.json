@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "server": "node server/app.js",
+    "dev:server": "node server/app.js",
+    "dev:full": "concurrently \"npm run dev:server\" \"npm run dev\"",
+    "start:server": "NODE_ENV=production node server/app.js"
+  }
+}
