@@ -8,26 +8,9 @@ services:
       - "3001:3001"   # Backend API
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/testdb}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://localhost:27017/testdb}
       - MONGODB_DATABASE_NAME=testdb
       - MONGODB_COLLECTION_NAME=test_results
       - FRONTEND_URL=http://localhost:5010
-    depends_on:
-      - mongodb
     restart: unless-stopped
     
-  # Optional MongoDB service for local development
-  mongodb:
-    image: mongo:6.0
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_DATABASE=testdb
-    volumes:
-      - mongodb_data:/data/db
-    restart: unless-stopped
-    profiles:
-      - local
-
-volumes:
-  mongodb_data:
