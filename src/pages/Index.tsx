@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { subDays } from "date-fns";
-import { Clock, TestTube, TrendingUp } from "lucide-react";
+import { Clock, TestTube, TrendingUp, Zap, Target } from "lucide-react";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { TestsChart } from "@/components/dashboard/TestsChart";
 import { HoursChart } from "@/components/dashboard/HoursChart";
@@ -72,16 +72,59 @@ const Index = () => {
             variant="default"
           />
 
-          {testType === "MCB Trip Time" && metrics.mcbCurrentBuckets && (
-            <MetricsCard
-              title="MCB Current Thresholds"
-              value={`${metrics.mcbCurrentBuckets["50-100"]} | ${metrics.mcbCurrentBuckets["100-200"]} | ${metrics.mcbCurrentBuckets["200-300"]} | ${metrics.mcbCurrentBuckets["300-400"]}`}
-              subtitle="50–100 | 100–200 | 200–300 | 300–400 A"
-              icon={<TrendingUp className="h-4 w-4" />}
-              variant="default"
-            />
-          )}
         </div>
+
+        {/* MCB Current Analysis */}
+        {testType === "MCB Trip Time" && metrics.mcbCurrentBuckets && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold tracking-tight">MCB Current Analysis</h2>
+            
+            {/* Current Threshold Cards */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricsCard
+                title="50-100A Range"
+                value={metrics.mcbCurrentBuckets["50-100"]}
+                subtitle="Tests in 50-100A range"
+                icon={<Zap className="h-4 w-4" />}
+                variant="default"
+              />
+              <MetricsCard
+                title="100-200A Range"
+                value={metrics.mcbCurrentBuckets["100-200"]}
+                subtitle="Tests in 100-200A range"
+                icon={<Zap className="h-4 w-4" />}
+                variant="default"
+              />
+              <MetricsCard
+                title="200-300A Range"
+                value={metrics.mcbCurrentBuckets["200-300"]}
+                subtitle="Tests in 200-300A range"
+                icon={<Zap className="h-4 w-4" />}
+                variant="default"
+              />
+              <MetricsCard
+                title="300-400A Range"
+                value={metrics.mcbCurrentBuckets["300-400"]}
+                subtitle="Tests in 300-400A range"
+                icon={<Zap className="h-4 w-4" />}
+                variant="default"
+              />
+            </div>
+
+            {/* Maximum Current Card */}
+            {metrics.mcbMaxCurrent && (
+              <div className="grid gap-4 md:grid-cols-3">
+                <MetricsCard
+                  title="Maximum Current Tested"
+                  value={`${metrics.mcbMaxCurrent.value}A`}
+                  subtitle={`Tested ${metrics.mcbMaxCurrent.count} time${metrics.mcbMaxCurrent.count !== 1 ? 's' : ''}`}
+                  icon={<Target className="h-4 w-4" />}
+                  variant="success"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Charts Grid */}
         <div className="grid gap-6 lg:grid-cols-2">

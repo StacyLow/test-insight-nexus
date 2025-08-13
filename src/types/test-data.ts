@@ -103,6 +103,10 @@ export interface DashboardMetrics {
     "200-300": number;
     "300-400": number;
   };
+  mcbMaxCurrent?: {
+    value: number;
+    count: number;
+  };
 }
 
 export interface DateRange {

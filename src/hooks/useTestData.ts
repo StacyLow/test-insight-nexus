@@ -333,8 +333,37 @@ const metrics = useMemo((): DashboardMetrics => {
   };
 
   // Only compute when all filtered tests are MCB Trip Time (i.e., when selected)
+  let mcbMaxCurrent: { value: number; count: number } | undefined = undefined;
+  
   if (filteredData.length > 0 && filteredData.every(t => getTestType(t.name) === 'MCB Trip Time')) {
     mcbCurrentBuckets = computeBuckets();
+    
+    // Calculate maximum current and its frequency
+    const currentValues = new Map<number, number>();
+    for (const t of filteredData) {
+      const mult = (typeof (t as any).multiplier === 'number' && (t as any).multiplier > 0)
+        ? (t as any).multiplier as number
+        : (t.condition?.amplitude && t.condition.amplitude > 0 ? t.condition.amplitude : parseMultiplierFromText(`${t.name} ${t.originalname} ${t.description}`));
+
+      const ratingVal = (typeof (t as any).rating === 'number')
+        ? (t as any).rating as number
+        : (typeof (t as any).rating === 'string' && (t as any).rating)
+          ? parseRatingNumber((t as any).rating as string)
+          : parseRatingNumber(`${t.name} ${t.originalname} ${t.description}`);
+
+      if (mult && ratingVal) {
+        const current = mult * ratingVal;
+        currentValues.set(current, (currentValues.get(current) || 0) + 1);
+      }
+    }
+    
+    if (currentValues.size > 0) {
+      const maxCurrent = Math.max(...currentValues.keys());
+      mcbMaxCurrent = {
+        value: maxCurrent,
+        count: currentValues.get(maxCurrent) || 0
+      };
+    }
   }
 
   return {
@@ -346,7 +375,8 @@ const metrics = useMemo((): DashboardMetrics => {
     passRate: 0,
     testsPerDay,
     hoursPerDay,
-    mcbCurrentBuckets
+    mcbCurrentBuckets,
+    mcbMaxCurrent
   };
 }, [filteredData, testType]);
 
