@@ -7,6 +7,7 @@ import { HoursChart } from "@/components/dashboard/HoursChart";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { useTestData } from "@/hooks/useTestData";
 import { TestType, DateRange } from "@/types/test-data";
+import { DbHealthIndicator } from "@/components/DbHealthIndicator";
 
 const Index = () => {
   const [testType, setTestType] = useState<TestType>("All");
@@ -28,6 +29,10 @@ const Index = () => {
           </p>
         </div>
 
+        <div className="flex justify-end">
+          <DbHealthIndicator />
+        </div>
+        
         {/* Main Grid: Filters + Metrics */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* Filters */}
