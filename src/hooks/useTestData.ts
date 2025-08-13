@@ -91,16 +91,71 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
 
     const { data, error } = await supabase
       .from('test_data')
-      .select('*')
-      .gte('start', fromEpoch)
-      .lte('start', toEpoch);
+      .select('id, created_at, datetime, duration, test_type, trip_time, trip_value, rating, multiplier, object_id')
+      .gte('created_at', dateRange.from.toISOString())
+      .lte('created_at', dateRange.to.toISOString());
 
     if (error) throw error;
 
-    const rows = (data || []) as unknown as TestEntry[];
+    const rows = (data || []) as any[];
+
+    // Map Supabase rows to TestEntry shape used by the UI
+    const mapped: TestEntry[] = rows.map((r, idx) => {
+      const created = r.datetime ? new Date(r.datetime) : new Date(r.created_at);
+      const startSec = Math.floor(created.getTime() / 1000);
+      const duration = typeof r.duration === 'number' ? r.duration : Number(r.duration) || 0;
+      const tt = (r.test_type || '').toString();
+      const lower = tt.toLowerCase();
+
+      let inferredName = `test_${lower || 'unknown'}`;
+      if (lower.includes('rcd')) {
+        if (r.trip_value !== null && r.trip_value !== undefined) inferredName = 'test_rcd trip value';
+        else if (r.trip_time !== null && r.trip_time !== undefined) inferredName = 'test_rcd trip time';
+      } else if (lower.includes('mcb')) {
+        inferredName = 'test_mcb trip time';
+      }
+
+      const computedPassed = (r.trip_time !== null && r.trip_time !== undefined) || (r.trip_value !== null && r.trip_value !== undefined);
+
+      return {
+        _id: { $oid: r.id || r.object_id || `row_${idx}` },
+        name: inferredName,
+        originalname: tt || 'test',
+        description: '',
+        session_uuid4: r.object_id || r.id || `session_${idx}`,
+        start: startSec,
+        stop: startSec + duration,
+        duration,
+        outcome: computedPassed ? 'passed' : 'failed',
+        passed: computedPassed,
+        failed: !computedPassed,
+        skipped: false,
+        error: false,
+        results: [],
+        dataset: [],
+        versions: {
+          meter: {
+            serial_number: '',
+            firmware_version_main: '',
+            firmware_version_ripple: ''
+          }
+        },
+        condition: {
+          command: 0,
+          amplitude: Number(r.multiplier) || 0,
+          frequency: 0,
+          state: 'On'
+        },
+        xray: { id: '', key: '', issue_id: '' },
+        meter_datetime_str: format(created, 'yyyy/M/d HH:mm:ss.SSS'),
+        events: [],
+        waveform_ids: [],
+        document_type: 'function_metadata'
+      };
+    });
 
     // Apply client-side test type filter if needed
-    const filtered = testType === 'All' ? rows : rows.filter(r => getTestType(r.name) === testType);
+    const filtered = testType === 'All' ? mapped : mapped.filter(r => getTestType(r.name) === testType);
     console.log(`[useTestData] Successfully fetched ${filtered.length} real entries from Supabase (raw ${rows.length})`);
     return filtered;
   } catch (error) {
