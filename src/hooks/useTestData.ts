@@ -2,8 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TestEntry, TestType, DashboardMetrics, DateRange } from "@/types/test-data";
 import { addDays, format, isWithinInterval } from "date-fns";
-import { databaseService } from "@/services/database";
 import { config } from "@/lib/config";
+import { supabase } from "@/integrations/supabase/client";
 
 // Mock data generator - replace with actual API calls
 const generateMockData = (): TestEntry[] => {
@@ -63,19 +63,21 @@ const generateMockData = (): TestEntry[] => {
 
 export const getTestType = (testName: string): TestType => {
   const name = testName.toLowerCase();
-  if (name.includes('decabit') || name.includes('telenerg')) {
-    return "Meter Test";
-  } else if (name.includes('mcb')) {
-    return "MCB Test";
-  } else if (name.includes('rcd')) {
-    return "RCD Test";
+  if (name.includes('mcb') && (name.includes('trip') || name.includes('time'))) {
+    return "MCB Trip Time";
   }
-  return "Meter Test"; // default
+  if (name.includes('rcd') && (name.includes('value') || name.includes('trip value'))) {
+    return "RCD Trip Value";
+  }
+  if (name.includes('rcd') && (name.includes('trip') || name.includes('time'))) {
+    return "RCD Trip Time";
+  }
+  return "RCD Trip Time"; // default
 };
 
-// Real data fetching with fallback and debugging
+// Real data fetching with Supabase and fallback
 const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<TestEntry[]> => {
-  console.log('[useTestData] Attempting to fetch real data', {
+  console.log('[useTestData] Attempting to fetch real data (Supabase)', {
     dateRange,
     testType,
     useRealData: config.useRealData,
@@ -84,17 +86,26 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
   });
 
   try {
-    const results = await databaseService.getTestResults(
-      dateRange.from,
-      dateRange.to,
-      testType === "All" ? undefined : testType
-    );
-    console.log(`[useTestData] Successfully fetched ${results.length} real entries`);
-    return results;
+    const fromEpoch = Math.floor(dateRange.from.getTime() / 1000);
+    const toEpoch = Math.floor(dateRange.to.getTime() / 1000);
+
+    const { data, error } = await supabase
+      .from('test_data')
+      .select('*')
+      .gte('start', fromEpoch)
+      .lte('start', toEpoch);
+
+    if (error) throw error;
+
+    const rows = (data || []) as unknown as TestEntry[];
+
+    // Apply client-side test type filter if needed
+    const filtered = testType === 'All' ? rows : rows.filter(r => getTestType(r.name) === testType);
+    console.log(`[useTestData] Successfully fetched ${filtered.length} real entries from Supabase (raw ${rows.length})`);
+    return filtered;
   } catch (error) {
-    console.error('[useTestData] Failed to fetch real data, falling back to mock data:', error);
-    console.warn('[useTestData] Note: MongoDB client cannot run in browser. Consider using a backend API or Supabase.');
-    
+    console.error('[useTestData] Supabase fetch failed, falling back to mock data:', error);
+
     // Fallback to mock data and filter it
     const mockData = generateMockData();
     const filteredMockData = mockData.filter(test => {
@@ -103,7 +114,7 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
         start: dateRange.from,
         end: dateRange.to
       });
-      
+
       if (!isInDateRange) return false;
       if (testType === "All") return true;
       return getTestType(test.name) === testType;
@@ -163,45 +174,73 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
     return filtered;
   }, [mockData, realData, dateRange.from, dateRange.to, testType]);
 
-  const metrics = useMemo((): DashboardMetrics => {
-    const totalHours = filteredData.reduce((sum, test) => sum + (test.duration / 3600), 0);
-    const totalTests = filteredData.length;
-    const passedTests = filteredData.filter(test => test.passed).length;
-    const failedTests = filteredData.filter(test => test.failed).length;
-    const passRate = (passedTests + failedTests) > 0 ? (passedTests / (passedTests + failedTests)) * 100 : 0;
+const metrics = useMemo((): DashboardMetrics => {
+  // For hours, ensure RCD Trip Value durations are counted once per unique object_id+duration
+  const seenTripValue = new Set<string>();
 
-    // Group by day for charts
-    const dayMap = new Map<string, { count: number; hours: number }>();
-    
-    filteredData.forEach(test => {
-      const date = format(new Date(test.start * 1000), "yyyy-MM-dd");
-      const existing = dayMap.get(date) || { count: 0, hours: 0 };
-      dayMap.set(date, {
-        count: existing.count + 1,
-        hours: existing.hours + (test.duration / 3600)
-      });
+  const addHoursWithDedup = (acc: number, test: TestEntry) => {
+    const type = getTestType(test.name);
+    if (type === "RCD Trip Value") {
+      const id = (test._id as any)?.$oid || (test as any)?.session_uuid4 || JSON.stringify(test._id);
+      const key = `${id}|${test.duration}`;
+      if (seenTripValue.has(key)) return acc;
+      seenTripValue.add(key);
+    }
+    return acc + (test.duration / 3600);
+  };
+
+  const totalHours = filteredData.reduce(addHoursWithDedup, 0);
+  const totalTests = filteredData.length;
+  const passedTests = filteredData.filter(test => test.passed).length;
+  const failedTests = filteredData.filter(test => test.failed).length;
+  const passRate = (passedTests + failedTests) > 0 ? (passedTests / (passedTests + failedTests)) * 100 : 0;
+
+  // Group by day for charts
+  const dayMap = new Map<string, { count: number; hours: number }>();
+
+  filteredData.forEach(test => {
+    const date = format(new Date(test.start * 1000), "yyyy-MM-dd");
+    const existing = dayMap.get(date) || { count: 0, hours: 0 };
+
+    // Hours with dedup rule applied
+    let hoursToAdd = test.duration / 3600;
+    const type = getTestType(test.name);
+    if (type === "RCD Trip Value") {
+      const id = (test._id as any)?.$oid || (test as any)?.session_uuid4 || JSON.stringify(test._id);
+      const key = `${id}|${test.duration}`;
+      if (seenTripValue.has(key)) {
+        hoursToAdd = 0;
+      } else {
+        seenTripValue.add(key);
+      }
+    }
+
+    dayMap.set(date, {
+      count: existing.count + 1,
+      hours: existing.hours + hoursToAdd,
     });
+  });
 
-    const testsPerDay = Array.from(dayMap.entries()).map(([date, data]) => ({
-      date,
-      count: data.count
-    })).sort((a, b) => a.date.localeCompare(b.date));
+  const testsPerDay = Array.from(dayMap.entries()).map(([date, data]) => ({
+    date,
+    count: data.count
+  })).sort((a, b) => a.date.localeCompare(b.date));
 
-    const hoursPerDay = Array.from(dayMap.entries()).map(([date, data]) => ({
-      date,
-      hours: Math.round(data.hours * 100) / 100
-    })).sort((a, b) => a.date.localeCompare(b.date));
+  const hoursPerDay = Array.from(dayMap.entries()).map(([date, data]) => ({
+    date,
+    hours: Math.round(data.hours * 100) / 100
+  })).sort((a, b) => a.date.localeCompare(b.date));
 
-    return {
-      totalHours: Math.round(totalHours * 100) / 100,
-      totalTests,
-      passedTests,
-      failedTests,
-      passRate: Math.round(passRate * 100) / 100,
-      testsPerDay,
-      hoursPerDay
-    };
-  }, [filteredData]);
+  return {
+    totalHours: Math.round(totalHours * 100) / 100,
+    totalTests,
+    passedTests,
+    failedTests,
+    passRate: Math.round(passRate * 100) / 100,
+    testsPerDay,
+    hoursPerDay
+  };
+}, [filteredData]);
 
   return { 
     data: filteredData, 

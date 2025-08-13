@@ -5,6 +5,6 @@ export const config = {
     collection: import.meta.env.VITE_MONGODB_COLLECTION_NAME || 'test_results'
   },
   isDevelopment: import.meta.env.DEV,
-  useRealData: import.meta.env.VITE_USE_REAL_DATA === 'true',
+  useRealData: import.meta.env.VITE_USE_REAL_DATA !== undefined ? import.meta.env.VITE_USE_REAL_DATA === 'true' : true,
   debugDatabase: import.meta.env.VITE_DEBUG_DB === 'true'
 };

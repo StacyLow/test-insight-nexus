@@ -83,7 +83,7 @@ export interface TestEntry {
   document_type: string;
 }
 
-export type TestType = "Meter Test" | "MCB Test" | "RCD Test" | "All";
+export type TestType = "MCB Trip Time" | "RCD Trip Value" | "RCD Trip Time" | "All";
 
 export interface DashboardMetrics {
   totalHours: number;

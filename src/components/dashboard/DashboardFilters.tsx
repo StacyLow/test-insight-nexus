@@ -35,9 +35,9 @@ export const DashboardFilters = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Tests</SelectItem>
-              <SelectItem value="Meter Test">Meter Test</SelectItem>
-              <SelectItem value="MCB Test">MCB Test</SelectItem>
-              <SelectItem value="RCD Test">RCD Test</SelectItem>
+              <SelectItem value="MCB Trip Time">MCB Trip Time</SelectItem>
+              <SelectItem value="RCD Trip Value">RCD Trip Value</SelectItem>
+              <SelectItem value="RCD Trip Time">RCD Trip Time</SelectItem>
             </SelectContent>
           </Select>
         </div>
