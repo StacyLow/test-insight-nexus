@@ -52,6 +52,9 @@ class DatabaseService {
       body: JSON.stringify(testResult),
     });
   }
+  async checkDbHealth(): Promise<any> {
+    return this.fetchAPI('/health/db');
+  }
 }
 
 export const databaseService = new DatabaseService();

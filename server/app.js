@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import testResultsRouter from './routes/test-results.js';
+import { databaseService } from './config/database.js';
 
 dotenv.config();
 
@@ -21,6 +22,20 @@ app.use('/api/test-results', testResultsRouter);
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// DB health check
+app.get('/api/health/db', async (req, res) => {
+  try {
+    if (!databaseService.isConnected) {
+      await databaseService.connect();
+    }
+    const db = databaseService.getDb();
+    await db.command({ ping: 1 });
+    res.json({ status: 'OK', mongo: 'connected', timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(500).json({ status: 'ERROR', mongo: 'disconnected', error: error.message });
+  }
 });
 
 // Error handling
