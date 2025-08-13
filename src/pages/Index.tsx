@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { subDays } from "date-fns";
-import { Clock, TestTube, CheckCircle, XCircle, TrendingUp } from "lucide-react";
+import { Clock, TestTube, TrendingUp } from "lucide-react";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { TestsChart } from "@/components/dashboard/TestsChart";
 import { HoursChart } from "@/components/dashboard/HoursChart";
@@ -62,22 +62,8 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Test Results Grid */}
-        <div className="grid gap-6 md:grid-cols-3">
-          <MetricsCard
-            title="Passed Tests"
-            value={metrics.passedTests}
-            subtitle={`${metrics.passRate}% pass rate`}
-            icon={<CheckCircle className="h-4 w-4" />}
-            variant="success"
-          />
-          <MetricsCard
-            title="Failed Tests"
-            value={metrics.failedTests}
-            subtitle={`${(100 - metrics.passRate).toFixed(1)}% failure rate`}
-            icon={<XCircle className="h-4 w-4" />}
-            variant="destructive"
-          />
+        {/* Test Results Grid (simplified: no pass/fail stats) */}
+        <div className="grid gap-6 md:grid-cols-1">
           <MetricsCard
             title="Average Test Duration"
             value={`${metrics.totalTests > 0 ? (metrics.totalHours / metrics.totalTests * 60).toFixed(1) : 0}min`}

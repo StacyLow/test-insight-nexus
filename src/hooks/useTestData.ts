@@ -122,7 +122,7 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
         name: inferredName,
         originalname: tt || 'test',
         description: '',
-        session_uuid4: r.object_id || r.id || `session_${idx}`,
+        session_uuid4: r.object_id || '',
         start: startSec,
         stop: startSec + duration,
         duration,
@@ -230,45 +230,32 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
   }, [mockData, realData, dateRange.from, dateRange.to, testType]);
 
 const metrics = useMemo((): DashboardMetrics => {
-  // For hours, ensure RCD Trip Value durations are counted once per unique object_id+duration
-  const seenTripValue = new Set<string>();
-
-  const addHoursWithDedup = (acc: number, test: TestEntry) => {
-    const type = getTestType(test.name);
-    if (type === "RCD Trip Value") {
-      const id = (test._id as any)?.$oid || (test as any)?.session_uuid4 || JSON.stringify(test._id);
-      const key = `${id}|${test.duration}`;
-      if (seenTripValue.has(key)) return acc;
-      seenTripValue.add(key);
-    }
-    return acc + (test.duration / 3600);
+  // Deduplicate hours by unique object_id + duration across the filtered dataset
+  const seenKeys = new Set<string>();
+  const getKey = (test: TestEntry) => {
+    const id = (test as any)?.session_uuid4 || (test._id as any)?.$oid || JSON.stringify(test._id);
+    return `${id}|${test.duration}`;
   };
 
-  const totalHours = filteredData.reduce(addHoursWithDedup, 0);
-  const totalTests = filteredData.length;
-  const passedTests = filteredData.filter(test => test.passed).length;
-  const failedTests = filteredData.filter(test => test.failed).length;
-  const passRate = (passedTests + failedTests) > 0 ? (passedTests / (passedTests + failedTests)) * 100 : 0;
+  const totalHours = filteredData.reduce((acc, test) => {
+    const key = getKey(test);
+    if (seenKeys.has(key)) return acc;
+    seenKeys.add(key);
+    return acc + test.duration / 3600;
+  }, 0);
 
-  // Group by day for charts
+  const totalTests = filteredData.length; // number of entries in the database (after filters)
+
+  // Group by day for charts with the same dedup rule
   const dayMap = new Map<string, { count: number; hours: number }>();
+  const seenPerAll = new Set<string>();
 
   filteredData.forEach(test => {
     const date = format(new Date(test.start * 1000), "yyyy-MM-dd");
     const existing = dayMap.get(date) || { count: 0, hours: 0 };
 
-    // Hours with dedup rule applied
-    let hoursToAdd = test.duration / 3600;
-    const type = getTestType(test.name);
-    if (type === "RCD Trip Value") {
-      const id = (test._id as any)?.$oid || (test as any)?.session_uuid4 || JSON.stringify(test._id);
-      const key = `${id}|${test.duration}`;
-      if (seenTripValue.has(key)) {
-        hoursToAdd = 0;
-      } else {
-        seenTripValue.add(key);
-      }
-    }
+    const key = getKey(test);
+    const hoursToAdd = seenPerAll.has(key) ? 0 : (seenPerAll.add(key), test.duration / 3600);
 
     dayMap.set(date, {
       count: existing.count + 1,
@@ -289,9 +276,10 @@ const metrics = useMemo((): DashboardMetrics => {
   return {
     totalHours: Math.round(totalHours * 100) / 100,
     totalTests,
-    passedTests,
-    failedTests,
-    passRate: Math.round(passRate * 100) / 100,
+    // Pass/fail stats not needed; keep zeros for compatibility
+    passedTests: 0,
+    failedTests: 0,
+    passRate: 0,
     testsPerDay,
     hoursPerDay
   };
