@@ -71,6 +71,16 @@ const Index = () => {
             icon={<TrendingUp className="h-4 w-4" />}
             variant="default"
           />
+
+          {testType === "MCB Trip Time" && metrics.mcbCurrentBuckets && (
+            <MetricsCard
+              title="MCB Current Thresholds"
+              value={`${metrics.mcbCurrentBuckets["50-100"]} | ${metrics.mcbCurrentBuckets["100-200"]} | ${metrics.mcbCurrentBuckets["200-300"]} | ${metrics.mcbCurrentBuckets["300-400"]}`}
+              subtitle="50–100 | 100–200 | 200–300 | 300–400 A"
+              icon={<TrendingUp className="h-4 w-4" />}
+              variant="default"
+            />
+          )}
         </div>
 
         {/* Charts Grid */}

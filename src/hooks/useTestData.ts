@@ -150,9 +150,12 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
         meter_datetime_str: format(created, 'yyyy/M/d HH:mm:ss.SSS'),
         events: [],
         waveform_ids: [],
-        document_type: 'function_metadata'
-      };
-    });
+        document_type: 'function_metadata',
+         // Optional fields for MCB metrics
+         multiplier: Number(r.multiplier) || undefined,
+         rating: r.rating ?? undefined
+       };
+     });
 
     // Apply client-side test type filter if needed
     const filtered = testType === 'All' ? mapped : mapped.filter(r => getTestType(r.name) === testType);
@@ -273,6 +276,67 @@ const metrics = useMemo((): DashboardMetrics => {
     hours: Math.round(data.hours * 100) / 100
   })).sort((a, b) => a.date.localeCompare(b.date));
 
+  // MCB current threshold buckets (only meaningful when MCB Trip Time is selected)
+  const bucketCounts = { '50-100': 0, '100-200': 0, '200-300': 0, '300-400': 0 } as const;
+  type BucketKey = keyof typeof bucketCounts;
+  let mcbCurrentBuckets: Record<BucketKey, number> | undefined = undefined;
+
+  const parseMultiplierFromText = (text: string): number | undefined => {
+    const patterns = [
+      /(\d+(?:\.\d+)?)\s*[x×]/i, // 5x or 5×
+      /[x×]\s*(\d+(?:\.\d+)?)/i, // x5 or ×5
+      /multiplier\s*[:=]?\s*(\d+(?:\.\d+)?)/i,
+    ];
+    for (const re of patterns) {
+      const m = text.match(re);
+      if (m && m[1]) return parseFloat(m[1]);
+    }
+    return undefined;
+  };
+
+  const parseRatingNumber = (text: string): number | undefined => {
+    // Prefer digits following a curve letter like B10, C16, etc., else any standalone number
+    const curve = text.match(/[A-Z]\s*(\d+(?:\.\d+)?)/i);
+    if (curve && curve[1]) return parseFloat(curve[1]);
+    const anyNum = text.match(/\b(\d+(?:\.\d+)?)\b/);
+    if (anyNum && anyNum[1]) return parseFloat(anyNum[1]);
+    return undefined;
+  };
+
+  const computeBuckets = () => {
+    const counts: Record<BucketKey, number> = { '50-100': 0, '100-200': 0, '200-300': 0, '300-400': 0 };
+    for (const t of filteredData) {
+      // Get multiplier
+      const mult = (typeof (t as any).multiplier === 'number' && (t as any).multiplier > 0)
+        ? (t as any).multiplier as number
+        : (t.condition?.amplitude && t.condition.amplitude > 0 ? t.condition.amplitude : parseMultiplierFromText(`${t.name} ${t.originalname} ${t.description}`));
+
+      // Get rating numeric part
+      const ratingVal = (typeof (t as any).rating === 'number')
+        ? (t as any).rating as number
+        : (typeof (t as any).rating === 'string' && (t as any).rating)
+          ? parseRatingNumber((t as any).rating as string)
+          : parseRatingNumber(`${t.name} ${t.originalname} ${t.description}`);
+
+      if (!mult || !ratingVal) continue;
+      const current = mult * ratingVal; // As per spec: current = multiplier × numeric part of rating
+
+      let bucket: BucketKey | undefined = undefined;
+      if (current >= 50 && current < 100) bucket = '50-100';
+      else if (current >= 100 && current < 200) bucket = '100-200';
+      else if (current >= 200 && current < 300) bucket = '200-300';
+      else if (current >= 300 && current <= 400) bucket = '300-400';
+
+      if (bucket) counts[bucket] += 1;
+    }
+    return counts;
+  };
+
+  // Only compute when all filtered tests are MCB Trip Time (i.e., when selected)
+  if (filteredData.length > 0 && filteredData.every(t => getTestType(t.name) === 'MCB Trip Time')) {
+    mcbCurrentBuckets = computeBuckets();
+  }
+
   return {
     totalHours: Math.round(totalHours * 100) / 100,
     totalTests,
@@ -281,9 +345,10 @@ const metrics = useMemo((): DashboardMetrics => {
     failedTests: 0,
     passRate: 0,
     testsPerDay,
-    hoursPerDay
+    hoursPerDay,
+    mcbCurrentBuckets
   };
-}, [filteredData]);
+}, [filteredData, testType]);
 
   return { 
     data: filteredData, 

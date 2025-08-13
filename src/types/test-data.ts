@@ -81,6 +81,9 @@ export interface TestEntry {
   events: TestEvent[];
   waveform_ids: any[];
   document_type: string;
+  // Optional parsed/structured fields for MCB metrics
+  multiplier?: number;
+  rating?: string | number;
 }
 
 export type TestType = "MCB Trip Time" | "RCD Trip Value" | "RCD Trip Time" | "All";
@@ -93,6 +96,13 @@ export interface DashboardMetrics {
   passRate: number;
   testsPerDay: { date: string; count: number }[];
   hoursPerDay: { date: string; hours: number }[];
+  // Only when MCB Trip Time is selected
+  mcbCurrentBuckets?: {
+    "50-100": number;
+    "100-200": number;
+    "200-300": number;
+    "300-400": number;
+  };
 }
 
 export interface DateRange {
