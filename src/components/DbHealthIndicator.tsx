@@ -47,13 +47,19 @@ export const DbHealthIndicator = () => {
         onClick={() => refetch()}
         disabled={isFetching}
         aria-label="Check database connection"
+        title="Check MongoDB health"
       >
         {isFetching ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Checking…</span>
+          </>
         ) : (
-          <RefreshCcw className="h-4 w-4" />
+          <>
+            <RefreshCcw className="h-4 w-4" />
+            <span>DB Health</span>
+          </>
         )}
-        <span className="sr-only">Check DB</span>
       </Button>
     </div>
   );
