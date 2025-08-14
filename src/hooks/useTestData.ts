@@ -373,7 +373,8 @@ const metrics = useMemo((): DashboardMetrics => {
       const tripTime = (t as any).trip_time;
       const upperLimit = (t as any).upper_limit;
       
-      if (typeof tripTime === 'number' && typeof upperLimit === 'number' && upperLimit > 0) {
+      // Filter out extremely large upper_limit values (like 1e+18) but keep reasonable ones (like 3600)
+      if (typeof tripTime === 'number' && typeof upperLimit === 'number' && upperLimit > 0 && upperLimit < 1e+10) {
         // Calculate percentage improvement: (upper_limit - trip_time) / upper_limit * 100
         const speedImprovement = ((upperLimit - tripTime) / upperLimit) * 100;
         performanceData.push({ speedImprovement });
