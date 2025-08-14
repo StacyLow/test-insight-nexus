@@ -85,6 +85,7 @@ export interface TestEntry {
   multiplier?: number;
   rating?: string | number;
   upper_limit?: number;
+  trip_time?: number;
 }
 
 export type TestType = "MCB Trip Time" | "RCD Trip Value" | "RCD Trip Time" | "All";

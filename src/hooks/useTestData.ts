@@ -154,7 +154,8 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
          // Optional fields for MCB metrics
          multiplier: Number(r.multiplier) || undefined,
          rating: r.rating ?? undefined,
-         upper_limit: typeof r.upper_limit === 'number' ? r.upper_limit : undefined
+         upper_limit: typeof r.upper_limit === 'number' ? r.upper_limit : undefined,
+         trip_time: typeof r.trip_time === 'number' ? r.trip_time : undefined
        };
      });
 
