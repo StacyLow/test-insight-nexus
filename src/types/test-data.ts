@@ -109,7 +109,11 @@ export interface DashboardMetrics {
     value: number;
     count: number;
   };
-  mcbPerformance?: {
+  mcbShortCircuitPerformance?: {
+    averageSpeedImprovement: number; // Percentage faster than upper limit
+    testsWithData: number; // Number of tests with both trip_time and upper_limit
+  };
+  mcbRegularTripPerformance?: {
     averageSpeedImprovement: number; // Percentage faster than upper limit
     testsWithData: number; // Number of tests with both trip_time and upper_limit
   };

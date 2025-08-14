@@ -336,7 +336,8 @@ const metrics = useMemo((): DashboardMetrics => {
 
   // Only compute when all filtered tests are MCB Trip Time (i.e., when selected)
   let mcbMaxCurrent: { value: number; count: number } | undefined = undefined;
-  let mcbPerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
+  let mcbShortCircuitPerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
+  let mcbRegularTripPerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
   
   if (filteredData.length > 0 && filteredData.every(t => getTestType(t.name) === 'MCB Trip Time')) {
     mcbCurrentBuckets = computeBuckets();
@@ -368,8 +369,9 @@ const metrics = useMemo((): DashboardMetrics => {
       };
     }
     
-    // Calculate performance metric - how much faster we trip than upper limit
-    const performanceData: { speedImprovement: number }[] = [];
+    // Calculate performance metrics split by category
+    const shortCircuitData: { speedImprovement: number }[] = [];
+    const regularTripData: { speedImprovement: number }[] = [];
     console.log('[MCB Performance] Starting performance calculation for', filteredData.length, 'tests');
     
     for (const t of filteredData) {
@@ -380,26 +382,39 @@ const metrics = useMemo((): DashboardMetrics => {
       if (typeof tripTime === 'number' && typeof upperLimit === 'number' && upperLimit > 0 && upperLimit < 1e+10) {
         // Calculate percentage improvement: (upper_limit - trip_time) / upper_limit * 100
         const speedImprovement = ((upperLimit - tripTime) / upperLimit) * 100;
-        performanceData.push({ speedImprovement });
+        
+        // Split into categories based on upper_limit
+        if (upperLimit === 0.1) {
+          shortCircuitData.push({ speedImprovement });
+        } else {
+          regularTripData.push({ speedImprovement });
+        }
         
         // Log first few valid entries for debugging
-        if (performanceData.length <= 3) {
-          console.log('[MCB Performance] Valid entry:', { tripTime, upperLimit, speedImprovement });
+        if (shortCircuitData.length + regularTripData.length <= 3) {
+          console.log('[MCB Performance] Valid entry:', { tripTime, upperLimit, speedImprovement, category: upperLimit === 0.1 ? 'short-circuit' : 'regular-trip' });
         }
       }
     }
     
-    console.log('[MCB Performance] Found', performanceData.length, 'tests with valid performance data');
+    console.log('[MCB Performance] Found', shortCircuitData.length, 'short circuit tests and', regularTripData.length, 'regular trip tests with valid performance data');
     
-    if (performanceData.length > 0) {
-      const averageSpeedImprovement = performanceData.reduce((sum, p) => sum + p.speedImprovement, 0) / performanceData.length;
-      mcbPerformance = {
+    if (shortCircuitData.length > 0) {
+      const averageSpeedImprovement = shortCircuitData.reduce((sum, p) => sum + p.speedImprovement, 0) / shortCircuitData.length;
+      mcbShortCircuitPerformance = {
         averageSpeedImprovement: Math.round(averageSpeedImprovement * 10) / 10, // Round to 1 decimal
-        testsWithData: performanceData.length
+        testsWithData: shortCircuitData.length
       };
-      console.log('[MCB Performance] Calculated metric:', mcbPerformance);
-    } else {
-      console.log('[MCB Performance] No valid performance data found');
+      console.log('[MCB Performance] Short circuit metric:', mcbShortCircuitPerformance);
+    }
+    
+    if (regularTripData.length > 0) {
+      const averageSpeedImprovement = regularTripData.reduce((sum, p) => sum + p.speedImprovement, 0) / regularTripData.length;
+      mcbRegularTripPerformance = {
+        averageSpeedImprovement: Math.round(averageSpeedImprovement * 10) / 10, // Round to 1 decimal
+        testsWithData: regularTripData.length
+      };
+      console.log('[MCB Performance] Regular trip metric:', mcbRegularTripPerformance);
     }
   }
 
@@ -414,7 +429,8 @@ const metrics = useMemo((): DashboardMetrics => {
     hoursPerDay,
     mcbCurrentBuckets,
     mcbMaxCurrent,
-    mcbPerformance
+    mcbShortCircuitPerformance,
+    mcbRegularTripPerformance
   };
 }, [filteredData, testType]);
 

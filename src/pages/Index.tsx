@@ -12,7 +12,7 @@ import { DbHealthIndicator } from "@/components/DbHealthIndicator";
 const Index = () => {
   const [testType, setTestType] = useState<TestType>("All");
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: subDays(new Date(), 30),
+    from: new Date(2024, 11, 1), // December 1st, 2024
     to: new Date(),
   });
 
@@ -62,17 +62,6 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Test Results Grid (simplified: no pass/fail stats) */}
-        <div className="grid gap-6 md:grid-cols-1">
-          <MetricsCard
-            title="Average Test Duration"
-            value={`${metrics.totalTests > 0 ? (metrics.totalHours / metrics.totalTests * 60).toFixed(1) : 0}min`}
-            subtitle="Mean execution time per test"
-            icon={<TrendingUp className="h-4 w-4" />}
-            variant="default"
-          />
-
-        </div>
 
         {/* MCB Current Analysis */}
         {testType === "MCB Trip Time" && metrics.mcbCurrentBuckets && (
@@ -122,11 +111,24 @@ const Index = () => {
                   variant="success"
                 />
               )}
-              {metrics.mcbPerformance && (
+              {metrics.mcbShortCircuitPerformance && (
                 <MetricsCard
-                  title="Performance vs Upper Limit"
-                  value={`${metrics.mcbPerformance.averageSpeedImprovement}%`}
-                  subtitle={`Faster than limit (${metrics.mcbPerformance.testsWithData} tests)`}
+                  title="Short Circuit Performance"
+                  value={`${metrics.mcbShortCircuitPerformance.averageSpeedImprovement}%`}
+                  subtitle={`Faster than limit (${metrics.mcbShortCircuitPerformance.testsWithData} tests)`}
+                  icon={<Trophy className="h-4 w-4" />}
+                  variant="success"
+                />
+              )}
+            </div>
+
+            {/* Regular Trip Performance Card */}
+            <div className="grid gap-4 md:grid-cols-1">
+              {metrics.mcbRegularTripPerformance && (
+                <MetricsCard
+                  title="Regular Trip Performance"
+                  value={`${metrics.mcbRegularTripPerformance.averageSpeedImprovement}%`}
+                  subtitle={`Faster than limit (${metrics.mcbRegularTripPerformance.testsWithData} tests)`}
                   icon={<Trophy className="h-4 w-4" />}
                   variant="success"
                 />
