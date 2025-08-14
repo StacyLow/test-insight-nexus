@@ -369,6 +369,8 @@ const metrics = useMemo((): DashboardMetrics => {
     
     // Calculate performance metric - how much faster we trip than upper limit
     const performanceData: { speedImprovement: number }[] = [];
+    console.log('[MCB Performance] Starting performance calculation for', filteredData.length, 'tests');
+    
     for (const t of filteredData) {
       const tripTime = (t as any).trip_time;
       const upperLimit = (t as any).upper_limit;
@@ -378,8 +380,15 @@ const metrics = useMemo((): DashboardMetrics => {
         // Calculate percentage improvement: (upper_limit - trip_time) / upper_limit * 100
         const speedImprovement = ((upperLimit - tripTime) / upperLimit) * 100;
         performanceData.push({ speedImprovement });
+        
+        // Log first few valid entries for debugging
+        if (performanceData.length <= 3) {
+          console.log('[MCB Performance] Valid entry:', { tripTime, upperLimit, speedImprovement });
+        }
       }
     }
+    
+    console.log('[MCB Performance] Found', performanceData.length, 'tests with valid performance data');
     
     if (performanceData.length > 0) {
       const averageSpeedImprovement = performanceData.reduce((sum, p) => sum + p.speedImprovement, 0) / performanceData.length;
@@ -387,6 +396,9 @@ const metrics = useMemo((): DashboardMetrics => {
         averageSpeedImprovement: Math.round(averageSpeedImprovement * 10) / 10, // Round to 1 decimal
         testsWithData: performanceData.length
       };
+      console.log('[MCB Performance] Calculated metric:', mcbPerformance);
+    } else {
+      console.log('[MCB Performance] No valid performance data found');
     }
   }
 
