@@ -34,17 +34,19 @@ const Index = () => {
         </div>
         
         {/* Main Grid: Filters + Metrics */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-5">
           {/* Filters */}
-          <DashboardFilters
-            testType={testType}
-            onTestTypeChange={setTestType}
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-          />
+          <div className="md:col-span-2">
+            <DashboardFilters
+              testType={testType}
+              onTestTypeChange={setTestType}
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
+          </div>
           
           {/* Key Metrics */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="md:col-span-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             <MetricsCard
               title="Total Tests"
               value={metrics.totalTests}
@@ -107,8 +109,8 @@ const Index = () => {
               />
             </div>
 
-            {/* Maximum Current and Performance Cards */}
-            <div className="grid gap-4 md:grid-cols-2">
+            {/* Maximum Current Card */}
+            <div className="grid gap-4 md:grid-cols-1">
               {metrics.mcbMaxCurrent && (
                 <MetricsCard
                   title="Maximum Current Tested"
@@ -118,6 +120,10 @@ const Index = () => {
                   variant="success"
                 />
               )}
+            </div>
+
+            {/* Performance Cards - Side by Side */}
+            <div className="grid gap-4 md:grid-cols-2">
               {metrics.mcbShortCircuitPerformance && (
                 <MetricsCard
                   title="Short Circuit Performance"
@@ -127,10 +133,6 @@ const Index = () => {
                   variant="success"
                 />
               )}
-            </div>
-
-            {/* Regular Trip Performance Card */}
-            <div className="grid gap-4 md:grid-cols-1">
               {metrics.mcbRegularTripPerformance && (
                 <MetricsCard
                   title="Regular Trip Performance"
