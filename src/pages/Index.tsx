@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { subDays } from "date-fns";
-import { Clock, TestTube, TrendingUp, Zap, Target } from "lucide-react";
+import { Clock, TestTube, TrendingUp, Zap, Target, Trophy } from "lucide-react";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { TestsChart } from "@/components/dashboard/TestsChart";
 import { HoursChart } from "@/components/dashboard/HoursChart";
@@ -111,9 +111,9 @@ const Index = () => {
               />
             </div>
 
-            {/* Maximum Current Card */}
-            {metrics.mcbMaxCurrent && (
-              <div className="grid gap-4 md:grid-cols-3">
+            {/* Maximum Current and Performance Cards */}
+            <div className="grid gap-4 md:grid-cols-2">
+              {metrics.mcbMaxCurrent && (
                 <MetricsCard
                   title="Maximum Current Tested"
                   value={`${metrics.mcbMaxCurrent.value}A`}
@@ -121,8 +121,17 @@ const Index = () => {
                   icon={<Target className="h-4 w-4" />}
                   variant="success"
                 />
-              </div>
-            )}
+              )}
+              {metrics.mcbPerformance && (
+                <MetricsCard
+                  title="Performance vs Upper Limit"
+                  value={`${metrics.mcbPerformance.averageSpeedImprovement}%`}
+                  subtitle={`Faster than limit (${metrics.mcbPerformance.testsWithData} tests)`}
+                  icon={<Trophy className="h-4 w-4" />}
+                  variant="success"
+                />
+              )}
+            </div>
           </div>
         )}
 

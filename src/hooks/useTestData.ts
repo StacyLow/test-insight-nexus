@@ -91,7 +91,7 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
 
     const { data, error } = await supabase
       .from('test_data')
-      .select('id, created_at, datetime, duration, test_type, trip_time, trip_value, rating, multiplier, object_id')
+      .select('id, created_at, datetime, duration, test_type, trip_time, trip_value, rating, multiplier, object_id, upper_limit')
       .gte('created_at', dateRange.from.toISOString())
       .lte('created_at', dateRange.to.toISOString());
 
@@ -153,7 +153,8 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
         document_type: 'function_metadata',
          // Optional fields for MCB metrics
          multiplier: Number(r.multiplier) || undefined,
-         rating: r.rating ?? undefined
+         rating: r.rating ?? undefined,
+         upper_limit: typeof r.upper_limit === 'number' ? r.upper_limit : undefined
        };
      });
 
@@ -334,6 +335,7 @@ const metrics = useMemo((): DashboardMetrics => {
 
   // Only compute when all filtered tests are MCB Trip Time (i.e., when selected)
   let mcbMaxCurrent: { value: number; count: number } | undefined = undefined;
+  let mcbPerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
   
   if (filteredData.length > 0 && filteredData.every(t => getTestType(t.name) === 'MCB Trip Time')) {
     mcbCurrentBuckets = computeBuckets();
@@ -364,6 +366,27 @@ const metrics = useMemo((): DashboardMetrics => {
         count: currentValues.get(maxCurrent) || 0
       };
     }
+    
+    // Calculate performance metric - how much faster we trip than upper limit
+    const performanceData: { speedImprovement: number }[] = [];
+    for (const t of filteredData) {
+      const tripTime = (t as any).trip_time;
+      const upperLimit = (t as any).upper_limit;
+      
+      if (typeof tripTime === 'number' && typeof upperLimit === 'number' && upperLimit > 0) {
+        // Calculate percentage improvement: (upper_limit - trip_time) / upper_limit * 100
+        const speedImprovement = ((upperLimit - tripTime) / upperLimit) * 100;
+        performanceData.push({ speedImprovement });
+      }
+    }
+    
+    if (performanceData.length > 0) {
+      const averageSpeedImprovement = performanceData.reduce((sum, p) => sum + p.speedImprovement, 0) / performanceData.length;
+      mcbPerformance = {
+        averageSpeedImprovement: Math.round(averageSpeedImprovement * 10) / 10, // Round to 1 decimal
+        testsWithData: performanceData.length
+      };
+    }
   }
 
   return {
@@ -376,7 +399,8 @@ const metrics = useMemo((): DashboardMetrics => {
     testsPerDay,
     hoursPerDay,
     mcbCurrentBuckets,
-    mcbMaxCurrent
+    mcbMaxCurrent,
+    mcbPerformance
   };
 }, [filteredData, testType]);
 

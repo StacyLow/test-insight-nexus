@@ -84,6 +84,7 @@ export interface TestEntry {
   // Optional parsed/structured fields for MCB metrics
   multiplier?: number;
   rating?: string | number;
+  upper_limit?: number;
 }
 
 export type TestType = "MCB Trip Time" | "RCD Trip Value" | "RCD Trip Time" | "All";
@@ -106,6 +107,10 @@ export interface DashboardMetrics {
   mcbMaxCurrent?: {
     value: number;
     count: number;
+  };
+  mcbPerformance?: {
+    averageSpeedImprovement: number; // Percentage faster than upper limit
+    testsWithData: number; // Number of tests with both trip_time and upper_limit
   };
 }
 
