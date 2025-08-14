@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { subDays } from "date-fns";
-import { Clock, TestTube, TrendingUp, Zap, Target, Trophy } from "lucide-react";
+import { Clock, TestTube, TrendingUp, Zap, Target, Trophy, Thermometer } from "lucide-react";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { TestsChart } from "@/components/dashboard/TestsChart";
 import { HoursChart } from "@/components/dashboard/HoursChart";
@@ -44,7 +44,7 @@ const Index = () => {
           />
           
           {/* Key Metrics */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             <MetricsCard
               title="Total Tests"
               value={metrics.totalTests}
@@ -57,6 +57,13 @@ const Index = () => {
               value={`${metrics.totalHours}h`}
               subtitle="Cumulative test execution time"
               icon={<Clock className="h-4 w-4" />}
+              variant="default"
+            />
+            <MetricsCard
+              title="Temperature Range"
+              value="-10°C to 60°C"
+              subtitle="Testing temperature coverage"
+              icon={<Thermometer className="h-4 w-4" />}
               variant="default"
             />
           </div>
