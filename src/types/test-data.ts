@@ -81,6 +81,8 @@ export interface TestEntry {
   events: TestEvent[];
   waveform_ids: any[];
   document_type: string;
+  // Test type from database for accurate filtering
+  test_type?: string;
   // Optional parsed/structured fields for MCB metrics
   multiplier?: number;
   rating?: string | number;

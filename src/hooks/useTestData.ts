@@ -162,9 +162,13 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
        };
      });
 
+    // Debug: Log what test_type values we're actually getting from database
+    console.log('[useTestData] Debug - Raw database test_type values:', rows.slice(0, 5).map(r => ({ name: r.name, test_type: r.test_type })));
+    
     // Apply client-side test type filter if needed
     const filtered = testType === 'All' ? mapped : mapped.filter(r => {
-      const dbTestType = (r as any).test_type || '';
+      const dbTestType = r.test_type || '';
+      console.log('[useTestData] Filtering test:', r.name, 'db test_type:', dbTestType, 'filter:', testType);
       return dbTestType === testType;
     });
     console.log(`[useTestData] Successfully fetched ${filtered.length} real entries from Supabase (raw ${rows.length})`);
@@ -353,11 +357,12 @@ const metrics = useMemo((): DashboardMetrics => {
   
   // Filter MCB tests for MCB metrics
   const mcbTests = filteredData.filter(t => {
-    const dbTestType = (t as any).test_type || '';
+    const dbTestType = t.test_type || '';
     return dbTestType === 'MCB Trip Time';
   });
   console.log('[MCB Debug] Found MCB tests:', mcbTests.length);
-  console.log('[MCB Debug] Sample test types:', filteredData.slice(0, 5).map(t => ({ name: t.name, test_type: (t as any).test_type })));
+  console.log('[MCB Debug] All test types in filtered data:', filteredData.slice(0, 10).map(t => ({ name: t.name, test_type: t.test_type })));
+  console.log('[MCB Debug] Unique test types:', [...new Set(filteredData.map(t => t.test_type).filter(Boolean))]);
   if (mcbTests.length > 0) {
     mcbCurrentBuckets = computeBuckets();
     console.log('[MCB Debug] Computed buckets:', mcbCurrentBuckets);
@@ -440,7 +445,7 @@ const metrics = useMemo((): DashboardMetrics => {
   
   // RCD Trip Time Performance calculations
   const rcdTripTimeTests = filteredData.filter(t => {
-    const dbTestType = (t as any).test_type || '';
+    const dbTestType = t.test_type || '';
     return dbTestType === 'RCD Trip Time';
   });
   if (rcdTripTimeTests.length > 0) {
@@ -485,7 +490,7 @@ const metrics = useMemo((): DashboardMetrics => {
   
   // RCD Trip Value Performance calculations
   const rcdTripValueTests = filteredData.filter(t => {
-    const dbTestType = (t as any).test_type || '';
+    const dbTestType = t.test_type || '';
     return dbTestType === 'RCD Trip Value';
   });
   if (rcdTripValueTests.length > 0) {
