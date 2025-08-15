@@ -6,17 +6,16 @@ import { TestsChart } from "@/components/dashboard/TestsChart";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { useTestData } from "@/hooks/useTestData";
-import { TestType, DateRange } from "@/types/test-data";
+import { DateRange } from "@/types/test-data";
 import { DbHealthIndicator } from "@/components/DbHealthIndicator";
 
 const Index = () => {
-  const [testType, setTestType] = useState<TestType>("All");
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(2024, 11, 1), // December 1st, 2024
     to: new Date(),
   });
 
-  const { metrics } = useTestData(dateRange, testType);
+  const { metrics } = useTestData(dateRange);
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,8 +37,6 @@ const Index = () => {
           {/* Filters */}
           <div className="md:col-span-2">
             <DashboardFilters
-              testType={testType}
-              onTestTypeChange={setTestType}
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
             />
@@ -73,7 +70,7 @@ const Index = () => {
 
 
         {/* MCB Current Analysis */}
-        {testType === "MCB Trip Time" && metrics.mcbCurrentBuckets && (
+        {metrics.mcbCurrentBuckets && (
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold tracking-tight">MCB Current Analysis</h2>
             
@@ -139,6 +136,60 @@ const Index = () => {
                   value={`${metrics.mcbRegularTripPerformance.averageSpeedImprovement}%`}
                   subtitle={`Faster than limit (${metrics.mcbRegularTripPerformance.testsWithData} tests)`}
                   icon={<Trophy className="h-4 w-4" />}
+                  variant="success"
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* RCD Trip Time Performance */}
+        {(metrics.rcdTypeATripTimePerformance || metrics.rcdTypeBTripTimePerformance) && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold tracking-tight">RCD Trip Time Performance</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {metrics.rcdTypeATripTimePerformance && (
+                <MetricsCard
+                  title="Type A RCD Trip Time Performance"
+                  value={`${metrics.rcdTypeATripTimePerformance.averageSpeedImprovement}%`}
+                  subtitle={`Faster than limit (${metrics.rcdTypeATripTimePerformance.testsWithData} tests)`}
+                  icon={<Clock className="h-4 w-4" />}
+                  variant="success"
+                />
+              )}
+              {metrics.rcdTypeBTripTimePerformance && (
+                <MetricsCard
+                  title="Type B RCD Trip Time Performance"
+                  value={`${metrics.rcdTypeBTripTimePerformance.averageSpeedImprovement}%`}
+                  subtitle={`Faster than limit (${metrics.rcdTypeBTripTimePerformance.testsWithData} tests)`}
+                  icon={<Clock className="h-4 w-4" />}
+                  variant="success"
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* RCD Trip Value Performance */}
+        {(metrics.rcdTypeATripValuePerformance || metrics.rcdTypeBTripValuePerformance) && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold tracking-tight">RCD Trip Value Performance</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {metrics.rcdTypeATripValuePerformance && (
+                <MetricsCard
+                  title="Type A RCD Trip Value Performance"
+                  value={`${metrics.rcdTypeATripValuePerformance.averageSpeedImprovement}%`}
+                  subtitle={`Faster than limit (${metrics.rcdTypeATripValuePerformance.testsWithData} tests)`}
+                  icon={<Zap className="h-4 w-4" />}
+                  variant="success"
+                />
+              )}
+              {metrics.rcdTypeBTripValuePerformance && (
+                <MetricsCard
+                  title="Type B RCD Trip Value Performance"
+                  value={`${metrics.rcdTypeBTripValuePerformance.averageSpeedImprovement}%`}
+                  subtitle={`Faster than limit (${metrics.rcdTypeBTripValuePerformance.testsWithData} tests)`}
+                  icon={<Zap className="h-4 w-4" />}
                   variant="success"
                 />
               )}

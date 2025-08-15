@@ -9,15 +9,11 @@ import { TestType, DateRange } from "@/types/test-data";
 import { cn } from "@/lib/utils";
 
 interface DashboardFiltersProps {
-  testType: TestType;
-  onTestTypeChange: (type: TestType) => void;
   dateRange: DateRange;
   onDateRangeChange: (range: DateRange) => void;
 }
 
 export const DashboardFilters = ({
-  testType,
-  onTestTypeChange,
   dateRange,
   onDateRangeChange,
 }: DashboardFiltersProps) => {
@@ -27,21 +23,6 @@ export const DashboardFilters = ({
         <CardTitle>Filters</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Test Type</label>
-          <Select value={testType} onValueChange={(value) => onTestTypeChange(value as TestType)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Tests</SelectItem>
-              <SelectItem value="MCB Trip Time">MCB Trip Time</SelectItem>
-              <SelectItem value="RCD Trip Value">RCD Trip Value</SelectItem>
-              <SelectItem value="RCD Trip Time">RCD Trip Time</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         <div className="space-y-2">
           <label className="text-sm font-medium">Date Range</label>
           <div className="flex flex-col gap-2">

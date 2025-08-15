@@ -155,7 +155,8 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
          multiplier: Number(r.multiplier) || undefined,
          rating: r.rating ?? undefined,
          upper_limit: typeof r.upper_limit === 'number' ? r.upper_limit : undefined,
-         trip_time: typeof r.trip_time === 'number' ? r.trip_time : undefined
+         trip_time: typeof r.trip_time === 'number' ? r.trip_time : undefined,
+         trip_value: typeof r.trip_value === 'number' ? r.trip_value : undefined
        };
      });
 
@@ -184,20 +185,19 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
   }
 };
 
-export const useTestData = (dateRange: DateRange, testType: TestType) => {
+export const useTestData = (dateRange: DateRange) => {
   const [mockData] = useState<TestEntry[]>(() => generateMockData());
   
   console.log('[useTestData] Hook called', {
     dateRange,
-    testType,
     useRealData: config.useRealData,
     isDevelopment: config.isDevelopment
   });
 
   // Fetch real data using React Query (enabled based on config)
   const { data: realData, isLoading, error } = useQuery({
-    queryKey: ['testData', dateRange.from.toISOString(), dateRange.to.toISOString(), testType],
-    queryFn: () => fetchRealData(dateRange, testType),
+    queryKey: ['testData', dateRange.from.toISOString(), dateRange.to.toISOString()],
+    queryFn: () => fetchRealData(dateRange, "All"),
     enabled: config.useRealData, // Controlled by environment variable
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
@@ -225,14 +225,12 @@ export const useTestData = (dateRange: DateRange, testType: TestType) => {
         end: dateRange.to
       });
       
-      if (!isInDateRange) return false;
-      if (testType === "All") return true;
-      return getTestType(test.name) === testType;
+      return isInDateRange;
     });
     
     console.log(`[useTestData] Filtered to ${filtered.length} entries for display`);
     return filtered;
-  }, [mockData, realData, dateRange.from, dateRange.to, testType]);
+  }, [mockData, realData, dateRange.from, dateRange.to]);
 
 const metrics = useMemo((): DashboardMetrics => {
   // Deduplicate hours by unique object_id + duration across the filtered dataset
@@ -307,7 +305,7 @@ const metrics = useMemo((): DashboardMetrics => {
 
   const computeBuckets = () => {
     const counts: Record<BucketKey, number> = { '50-100': 0, '100-200': 0, '200-300': 0, '300-400': 0 };
-    for (const t of filteredData) {
+    for (const t of mcbTests) {
       // Get multiplier
       const mult = (typeof (t as any).multiplier === 'number' && (t as any).multiplier > 0)
         ? (t as any).multiplier as number
@@ -334,17 +332,27 @@ const metrics = useMemo((): DashboardMetrics => {
     return counts;
   };
 
-  // Only compute when all filtered tests are MCB Trip Time (i.e., when selected)
+  // Always compute MCB metrics
   let mcbMaxCurrent: { value: number; count: number } | undefined = undefined;
   let mcbShortCircuitPerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
   let mcbRegularTripPerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
   
-  if (filteredData.length > 0 && filteredData.every(t => getTestType(t.name) === 'MCB Trip Time')) {
+  // RCD Trip Time Performance metrics
+  let rcdTypeATripTimePerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
+  let rcdTypeBTripTimePerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
+  
+  // RCD Trip Value Performance metrics
+  let rcdTypeATripValuePerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
+  let rcdTypeBTripValuePerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
+  
+  // Filter MCB tests for MCB metrics
+  const mcbTests = filteredData.filter(t => getTestType(t.name) === 'MCB Trip Time');
+  if (mcbTests.length > 0) {
     mcbCurrentBuckets = computeBuckets();
     
     // Calculate maximum current and its frequency
     const currentValues = new Map<number, number>();
-    for (const t of filteredData) {
+    for (const t of mcbTests) {
       const mult = (typeof (t as any).multiplier === 'number' && (t as any).multiplier > 0)
         ? (t as any).multiplier as number
         : (t.condition?.amplitude && t.condition.amplitude > 0 ? t.condition.amplitude : parseMultiplierFromText(`${t.name} ${t.originalname} ${t.description}`));
@@ -372,9 +380,9 @@ const metrics = useMemo((): DashboardMetrics => {
     // Calculate performance metrics split by category
     const shortCircuitData: { speedImprovement: number }[] = [];
     const regularTripData: { speedImprovement: number }[] = [];
-    console.log('[MCB Performance] Starting performance calculation for', filteredData.length, 'tests');
+    console.log('[MCB Performance] Starting performance calculation for', mcbTests.length, 'tests');
     
-    for (const t of filteredData) {
+    for (const t of mcbTests) {
       const tripTime = (t as any).trip_time;
       const upperLimit = (t as any).upper_limit;
       
@@ -417,6 +425,90 @@ const metrics = useMemo((): DashboardMetrics => {
       console.log('[MCB Performance] Regular trip metric:', mcbRegularTripPerformance);
     }
   }
+  
+  // RCD Trip Time Performance calculations
+  const rcdTripTimeTests = filteredData.filter(t => getTestType(t.name) === 'RCD Trip Time');
+  if (rcdTripTimeTests.length > 0) {
+    const typeAData: { speedImprovement: number }[] = [];
+    const typeBData: { speedImprovement: number }[] = [];
+    
+    for (const t of rcdTripTimeTests) {
+      const tripTime = (t as any).trip_time;
+      const upperLimit = (t as any).upper_limit;
+      const name = t.name.toLowerCase();
+      
+      if (typeof tripTime === 'number' && typeof upperLimit === 'number' && upperLimit > 0 && upperLimit < 1e+10) {
+        const speedImprovement = ((upperLimit - tripTime) / upperLimit) * 100;
+        
+        // Type A: sinusoidal
+        if (name.includes('sinusoidal')) {
+          typeAData.push({ speedImprovement });
+        }
+        // Type B: composite, pulsating, or smooth
+        else if (name.includes('composite') || name.includes('pulsating') || name.includes('smooth')) {
+          typeBData.push({ speedImprovement });
+        }
+      }
+    }
+    
+    if (typeAData.length > 0) {
+      const averageSpeedImprovement = typeAData.reduce((sum, p) => sum + p.speedImprovement, 0) / typeAData.length;
+      rcdTypeATripTimePerformance = {
+        averageSpeedImprovement: Math.round(averageSpeedImprovement * 10) / 10,
+        testsWithData: typeAData.length
+      };
+    }
+    
+    if (typeBData.length > 0) {
+      const averageSpeedImprovement = typeBData.reduce((sum, p) => sum + p.speedImprovement, 0) / typeBData.length;
+      rcdTypeBTripTimePerformance = {
+        averageSpeedImprovement: Math.round(averageSpeedImprovement * 10) / 10,
+        testsWithData: typeBData.length
+      };
+    }
+  }
+  
+  // RCD Trip Value Performance calculations
+  const rcdTripValueTests = filteredData.filter(t => getTestType(t.name) === 'RCD Trip Value');
+  if (rcdTripValueTests.length > 0) {
+    const typeAValueData: { speedImprovement: number }[] = [];
+    const typeBValueData: { speedImprovement: number }[] = [];
+    
+    for (const t of rcdTripValueTests) {
+      const tripValue = (t as any).trip_value;
+      const upperLimit = (t as any).upper_limit;
+      const name = t.name.toLowerCase();
+      
+      if (typeof tripValue === 'number' && typeof upperLimit === 'number' && upperLimit > 0 && upperLimit < 1e+10) {
+        const speedImprovement = ((upperLimit - tripValue) / upperLimit) * 100;
+        
+        // Type A: sinusoidal
+        if (name.includes('sinusoidal')) {
+          typeAValueData.push({ speedImprovement });
+        }
+        // Type B: composite, pulsating, or smooth
+        else if (name.includes('composite') || name.includes('pulsating') || name.includes('smooth')) {
+          typeBValueData.push({ speedImprovement });
+        }
+      }
+    }
+    
+    if (typeAValueData.length > 0) {
+      const averageSpeedImprovement = typeAValueData.reduce((sum, p) => sum + p.speedImprovement, 0) / typeAValueData.length;
+      rcdTypeATripValuePerformance = {
+        averageSpeedImprovement: Math.round(averageSpeedImprovement * 10) / 10,
+        testsWithData: typeAValueData.length
+      };
+    }
+    
+    if (typeBValueData.length > 0) {
+      const averageSpeedImprovement = typeBValueData.reduce((sum, p) => sum + p.speedImprovement, 0) / typeBValueData.length;
+      rcdTypeBTripValuePerformance = {
+        averageSpeedImprovement: Math.round(averageSpeedImprovement * 10) / 10,
+        testsWithData: typeBValueData.length
+      };
+    }
+  }
 
   return {
     totalHours: Math.round(totalHours * 100) / 100,
@@ -430,9 +522,13 @@ const metrics = useMemo((): DashboardMetrics => {
     mcbCurrentBuckets,
     mcbMaxCurrent,
     mcbShortCircuitPerformance,
-    mcbRegularTripPerformance
+    mcbRegularTripPerformance,
+    rcdTypeATripTimePerformance,
+    rcdTypeBTripTimePerformance,
+    rcdTypeATripValuePerformance,
+    rcdTypeBTripValuePerformance
   };
-}, [filteredData, testType]);
+}, [filteredData]);
 
   return { 
     data: filteredData, 

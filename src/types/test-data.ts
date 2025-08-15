@@ -86,6 +86,7 @@ export interface TestEntry {
   rating?: string | number;
   upper_limit?: number;
   trip_time?: number;
+  trip_value?: number;
 }
 
 export type TestType = "MCB Trip Time" | "RCD Trip Value" | "RCD Trip Time" | "All";
@@ -98,7 +99,7 @@ export interface DashboardMetrics {
   passRate: number;
   testsPerDay: { date: string; count: number }[];
   hoursPerDay: { date: string; hours: number }[];
-  // Only when MCB Trip Time is selected
+  // MCB metrics - always available
   mcbCurrentBuckets?: {
     "50-100": number;
     "100-200": number;
@@ -116,6 +117,24 @@ export interface DashboardMetrics {
   mcbRegularTripPerformance?: {
     averageSpeedImprovement: number; // Percentage faster than upper limit
     testsWithData: number; // Number of tests with both trip_time and upper_limit
+  };
+  // RCD Trip Time Performance metrics
+  rcdTypeATripTimePerformance?: {
+    averageSpeedImprovement: number; // Percentage faster than upper limit
+    testsWithData: number; // Number of tests with both trip_time and upper_limit
+  };
+  rcdTypeBTripTimePerformance?: {
+    averageSpeedImprovement: number; // Percentage faster than upper limit
+    testsWithData: number; // Number of tests with both trip_time and upper_limit
+  };
+  // RCD Trip Value Performance metrics
+  rcdTypeATripValuePerformance?: {
+    averageSpeedImprovement: number; // Percentage faster than upper limit
+    testsWithData: number; // Number of tests with both trip_value and upper_limit
+  };
+  rcdTypeBTripValuePerformance?: {
+    averageSpeedImprovement: number; // Percentage faster than upper limit
+    testsWithData: number; // Number of tests with both trip_value and upper_limit
   };
 }
 
