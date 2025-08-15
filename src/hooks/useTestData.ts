@@ -348,8 +348,10 @@ const metrics = useMemo((): DashboardMetrics => {
   
   // Filter MCB tests for MCB metrics
   const mcbTests = filteredData.filter(t => getTestType(t.name) === 'MCB Trip Time');
+  console.log('[MCB Debug] Found MCB tests:', mcbTests.length);
   if (mcbTests.length > 0) {
     mcbCurrentBuckets = computeBuckets();
+    console.log('[MCB Debug] Computed buckets:', mcbCurrentBuckets);
     
     // Calculate maximum current and its frequency
     const currentValues = new Map<number, number>();
