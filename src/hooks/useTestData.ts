@@ -156,12 +156,17 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
          rating: r.rating ?? undefined,
          upper_limit: typeof r.upper_limit === 'number' ? r.upper_limit : undefined,
          trip_time: typeof r.trip_time === 'number' ? r.trip_time : undefined,
-         trip_value: typeof r.trip_value === 'number' ? r.trip_value : undefined
+         trip_value: typeof r.trip_value === 'number' ? r.trip_value : undefined,
+         // Store the actual test_type from database for accurate filtering
+         test_type: r.test_type || tt
        };
      });
 
     // Apply client-side test type filter if needed
-    const filtered = testType === 'All' ? mapped : mapped.filter(r => getTestType(r.name) === testType);
+    const filtered = testType === 'All' ? mapped : mapped.filter(r => {
+      const dbTestType = (r as any).test_type || '';
+      return dbTestType === testType;
+    });
     console.log(`[useTestData] Successfully fetched ${filtered.length} real entries from Supabase (raw ${rows.length})`);
     console.log('[useTestData] Sample RCD data for debugging:', filtered.filter(f => f.name && (f.name.includes('sinusoidal') || f.name.includes('composite') || f.name.includes('pulsating') || f.name.includes('smooth'))).slice(0, 3));
     return filtered;
@@ -347,8 +352,12 @@ const metrics = useMemo((): DashboardMetrics => {
   let rcdTypeBTripValuePerformance: { averageSpeedImprovement: number; testsWithData: number } | undefined = undefined;
   
   // Filter MCB tests for MCB metrics
-  const mcbTests = filteredData.filter(t => getTestType(t.name) === 'MCB Trip Time');
+  const mcbTests = filteredData.filter(t => {
+    const dbTestType = (t as any).test_type || '';
+    return dbTestType === 'MCB Trip Time';
+  });
   console.log('[MCB Debug] Found MCB tests:', mcbTests.length);
+  console.log('[MCB Debug] Sample test types:', filteredData.slice(0, 5).map(t => ({ name: t.name, test_type: (t as any).test_type })));
   if (mcbTests.length > 0) {
     mcbCurrentBuckets = computeBuckets();
     console.log('[MCB Debug] Computed buckets:', mcbCurrentBuckets);
@@ -430,7 +439,10 @@ const metrics = useMemo((): DashboardMetrics => {
   }
   
   // RCD Trip Time Performance calculations
-  const rcdTripTimeTests = filteredData.filter(t => getTestType(t.name) === 'RCD Trip Time');
+  const rcdTripTimeTests = filteredData.filter(t => {
+    const dbTestType = (t as any).test_type || '';
+    return dbTestType === 'RCD Trip Time';
+  });
   if (rcdTripTimeTests.length > 0) {
     const typeAData: { speedImprovement: number }[] = [];
     const typeBData: { speedImprovement: number }[] = [];
@@ -472,7 +484,10 @@ const metrics = useMemo((): DashboardMetrics => {
   }
   
   // RCD Trip Value Performance calculations
-  const rcdTripValueTests = filteredData.filter(t => getTestType(t.name) === 'RCD Trip Value');
+  const rcdTripValueTests = filteredData.filter(t => {
+    const dbTestType = (t as any).test_type || '';
+    return dbTestType === 'RCD Trip Value';
+  });
   if (rcdTripValueTests.length > 0) {
     const typeAValueData: { speedImprovement: number }[] = [];
     const typeBValueData: { speedImprovement: number }[] = [];
