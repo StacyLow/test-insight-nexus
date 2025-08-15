@@ -91,7 +91,7 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
 
     const { data, error } = await supabase
       .from('test_data')
-      .select('id, created_at, datetime, duration, test_type, trip_time, trip_value, rating, multiplier, object_id, upper_limit')
+      .select('id, created_at, datetime, duration, test_type, trip_time, trip_value, rating, multiplier, object_id, upper_limit, name')
       .gte('created_at', dateRange.from.toISOString())
       .lte('created_at', dateRange.to.toISOString());
 
@@ -119,7 +119,7 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
 
       return {
         _id: { $oid: r.id || r.object_id || `row_${idx}` },
-        name: inferredName,
+        name: r.name || inferredName,
         originalname: tt || 'test',
         description: '',
         session_uuid4: r.object_id || '',
@@ -163,6 +163,7 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
     // Apply client-side test type filter if needed
     const filtered = testType === 'All' ? mapped : mapped.filter(r => getTestType(r.name) === testType);
     console.log(`[useTestData] Successfully fetched ${filtered.length} real entries from Supabase (raw ${rows.length})`);
+    console.log('[useTestData] Sample RCD data for debugging:', filtered.filter(f => f.name && (f.name.includes('sinusoidal') || f.name.includes('composite') || f.name.includes('pulsating') || f.name.includes('smooth'))).slice(0, 3));
     return filtered;
   } catch (error) {
     console.error('[useTestData] Supabase fetch failed, falling back to mock data:', error);
