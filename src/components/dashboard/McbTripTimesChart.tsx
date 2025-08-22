@@ -100,10 +100,14 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
       const rating = String(test.rating || 'Unknown');
       const multiplier = String(test.multiplier || 'Unknown');
       
+      // Only include tests that match selected rating AND multiplier
       if (!selectedRatings.has(rating) || !selectedMultipliers.has(multiplier)) return;
 
-      // Parse the date - Supabase data uses meter_datetime_str, MongoDB uses dataset
-      const testDate = test.meter_datetime_str || (test.dataset && test.dataset.length > 0 ? test.dataset[0].datetime : null);
+      // Check if we have valid trip_time data
+      if (!test.trip_time || typeof test.trip_time !== 'number') return;
+
+      // Parse the date - Supabase data uses meter_datetime_str
+      const testDate = test.meter_datetime_str;
       if (!testDate) {
         console.log('No test date for test:', test);
         return;
@@ -115,7 +119,7 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
       dataPoints.push({
         date: format(parseISO(testDate), "yyyy-MM-dd"),
         timestamp,
-        tripTime: test.trip_time!,
+        tripTime: test.trip_time,
         rating,
         multiplier,
         comboId,
