@@ -64,11 +64,11 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
   }, [mcbTests]);
 
   const [selectedRatings, setSelectedRatings] = useState<Set<string>>(
-    new Set(uniqueRatings.slice(0, 2)) // Default to first 2 ratings
+    new Set() // Start with empty selection to force user to select
   );
   
   const [selectedMultipliers, setSelectedMultipliers] = useState<Set<string>>(
-    new Set(uniqueMultipliers.slice(0, 2)) // Default to first 2 multipliers
+    new Set() // Start with empty selection to force user to select
   );
 
   // Create color mapping for combinations
@@ -92,6 +92,10 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
 
     const dataPoints: TripTimeDataPoint[] = [];
 
+    console.log('MCB Tests:', mcbTests.length);
+    console.log('Selected Ratings:', Array.from(selectedRatings));
+    console.log('Selected Multipliers:', Array.from(selectedMultipliers));
+
     mcbTests.forEach((test) => {
       const rating = String(test.rating || 'Unknown');
       const multiplier = String(test.multiplier || 'Unknown');
@@ -100,7 +104,10 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
 
       // Parse the date from the test data dataset
       const testDate = test.dataset && test.dataset.length > 0 ? test.dataset[0].datetime : null;
-      if (!testDate) return;
+      if (!testDate) {
+        console.log('No test date for test:', test);
+        return;
+      }
 
       const timestamp = parseISO(testDate).getTime();
       const comboId = `${rating}-${multiplier}`;
@@ -116,6 +123,7 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
       });
     });
 
+    console.log('Chart Data Points:', dataPoints.length);
     return dataPoints.sort((a, b) => a.timestamp - b.timestamp);
   }, [mcbTests, selectedRatings, selectedMultipliers]);
 
@@ -132,7 +140,7 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
     
     return Array.from(grouped.entries()).map(([comboId, points]) => ({
       comboId,
-      label: `${points[0].rating}A × ${points[0].multiplier}`,
+      label: `${points[0].rating} × ${points[0].multiplier}`,
       color: colorMap.get(comboId) || CHART_COLORS[0],
       data: points,
     }));
@@ -199,7 +207,7 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
                       htmlFor={`rating-${rating}`}
                       className="text-sm cursor-pointer"
                     >
-                      {rating}A
+                      {rating}
                     </Label>
                   </div>
                 ))}
@@ -260,7 +268,7 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
                 <Tooltip
                   formatter={(value: any, name: string, props: any) => [
                     `${value} ms`,
-                    `${props.payload.rating}A × ${props.payload.multiplier}`
+                    `${props.payload.rating} × ${props.payload.multiplier}`
                   ]}
                   labelFormatter={(timestamp: number) => 
                     `Date: ${format(new Date(timestamp), "MMM dd, yyyy")}`
