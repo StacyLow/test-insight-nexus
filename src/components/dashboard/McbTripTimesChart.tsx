@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend } from "recharts";
+import { ChartContainer } from "@/components/ui/chart";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { format, parseISO } from "date-fns";
 import { TestEntry } from "@/types/test-data";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -190,8 +190,12 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
                   axisLine={false}
                   label={{ value: 'Trip Time (ms)', angle: -90, position: 'insideLeft' }}
                 />
-                <ChartTooltip 
-                  content={<ChartTooltipContent />}
+                <Tooltip
+                  formatter={(value: any, name: string) => [
+                    `${value} ms`,
+                    name
+                  ]}
+                  labelFormatter={(label) => `Date: ${label}`}
                 />
                 <Legend />
                 {uniqueCombinations
