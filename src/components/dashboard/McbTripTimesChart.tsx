@@ -106,24 +106,45 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
       // Check if we have valid trip_time data
       if (!test.trip_time || typeof test.trip_time !== 'number') return;
 
-      // Parse the date - Supabase data uses meter_datetime_str
+      // Parse the date - handle Supabase meter_datetime_str format like "2025/5/4 05:50:33.578"
       const testDate = test.meter_datetime_str;
       if (!testDate) {
         console.log('No test date for test:', test);
         return;
       }
 
-      const timestamp = parseISO(testDate).getTime();
+      // Convert the date format from "2025/5/4 05:50:33.578" to a valid Date
+      let parsedDate: Date;
+      try {
+        // Try to parse as ISO first, if that fails, parse the custom format
+        if (testDate.includes('T') || testDate.includes('Z')) {
+          parsedDate = parseISO(testDate);
+        } else {
+          // Handle format like "2025/5/4 05:50:33.578"
+          parsedDate = new Date(testDate.replace(/(\d{4})\/(\d{1,2})\/(\d{1,2})/, '$1-$2-$3'));
+        }
+        
+        // Validate the date
+        if (isNaN(parsedDate.getTime())) {
+          console.log('Invalid date for test:', testDate, test);
+          return;
+        }
+      } catch (error) {
+        console.log('Failed to parse date for test:', testDate, error, test);
+        return;
+      }
+
+      const timestamp = parsedDate.getTime();
       const comboId = `${rating}-${multiplier}`;
       
       dataPoints.push({
-        date: format(parseISO(testDate), "yyyy-MM-dd"),
+        date: format(parsedDate, "yyyy-MM-dd"),
         timestamp,
         tripTime: test.trip_time,
         rating,
         multiplier,
         comboId,
-        displayDate: format(parseISO(testDate), "MMM dd, yyyy"),
+        displayDate: format(parsedDate, "MMM dd, yyyy"),
       });
     });
 
