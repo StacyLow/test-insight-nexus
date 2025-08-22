@@ -4,6 +4,7 @@ import { Clock, TestTube, TrendingUp, Zap, Target, Trophy, Thermometer } from "l
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { TestsChart } from "@/components/dashboard/TestsChart";
 import { HoursChart } from "@/components/dashboard/HoursChart";
+import { McbTripTimesChart } from "@/components/dashboard/McbTripTimesChart";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { useTestData } from "@/hooks/useTestData";
 import { DateRange } from "@/types/test-data";
@@ -15,7 +16,7 @@ const Index = () => {
     to: new Date(),
   });
 
-  const { metrics } = useTestData(dateRange);
+  const { metrics, data } = useTestData(dateRange);
 
   return (
     <div className="min-h-screen bg-background">
@@ -210,6 +211,9 @@ const Index = () => {
             description="Hours of testing performed per day"
           />
         </div>
+
+        {/* MCB Trip Times Chart */}
+        <McbTripTimesChart data={data} />
 
         {/* Daily Averages */}
         <div className="grid gap-6 md:grid-cols-2">
