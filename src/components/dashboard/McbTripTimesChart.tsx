@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { ScatterChart, Scatter, XAxis, YAxis, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { format, parseISO } from "date-fns";
 import { TestEntry } from "@/types/test-data";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,15 +15,11 @@ interface McbTripTimesChartProps {
 interface TripTimeDataPoint {
   date: string;
   timestamp: number;
-  [key: string]: any; // For dynamic rating-multiplier combinations
-}
-
-interface RatingMultiplierCombo {
-  id: string;
+  tripTime: number;
   rating: string;
   multiplier: string;
-  label: string;
-  color: string;
+  comboId: string;
+  displayDate: string;
 }
 
 const CHART_COLORS = [
@@ -38,89 +34,128 @@ const CHART_COLORS = [
 ];
 
 export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
-  // Filter MCB tests and extract unique rating/multiplier combinations
+  // Filter MCB tests
   const mcbTests = data.filter(t => t.test_type === 'MCB Trip Time' && t.trip_time && t.rating && t.multiplier);
   
-  const uniqueCombinations = useMemo(() => {
-    const combos = new Map<string, RatingMultiplierCombo>();
+  // Extract unique ratings and multipliers
+  const { uniqueRatings, uniqueMultipliers } = useMemo(() => {
+    const ratings = new Set<string>();
+    const multipliers = new Set<string>();
     
     mcbTests.forEach((test) => {
-      const rating = String(test.rating || 'Unknown');
-      const multiplier = String(test.multiplier || 'Unknown');
-      const id = `${rating}-${multiplier}`;
-      
-      if (!combos.has(id)) {
-        combos.set(id, {
-          id,
-          rating,
-          multiplier,
-          label: `${rating}A × ${multiplier}`,
-          color: CHART_COLORS[combos.size % CHART_COLORS.length],
-        });
-      }
+      ratings.add(String(test.rating || 'Unknown'));
+      multipliers.add(String(test.multiplier || 'Unknown'));
     });
     
-    return Array.from(combos.values()).sort((a, b) => a.label.localeCompare(b.label));
+    return {
+      uniqueRatings: Array.from(ratings).sort((a, b) => {
+        const numA = parseFloat(a);
+        const numB = parseFloat(b);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.localeCompare(b);
+      }),
+      uniqueMultipliers: Array.from(multipliers).sort((a, b) => {
+        const numA = parseFloat(a);
+        const numB = parseFloat(b);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.localeCompare(b);
+      }),
+    };
   }, [mcbTests]);
 
-  const [selectedCombinations, setSelectedCombinations] = useState<Set<string>>(
-    new Set(uniqueCombinations.slice(0, 3).map(c => c.id)) // Default to first 3 combinations
+  const [selectedRatings, setSelectedRatings] = useState<Set<string>>(
+    new Set(uniqueRatings.slice(0, 2)) // Default to first 2 ratings
+  );
+  
+  const [selectedMultipliers, setSelectedMultipliers] = useState<Set<string>>(
+    new Set(uniqueMultipliers.slice(0, 2)) // Default to first 2 multipliers
   );
 
-  const chartData = useMemo(() => {
-    if (selectedCombinations.size === 0) return [];
+  // Create color mapping for combinations
+  const colorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    let colorIndex = 0;
+    
+    uniqueRatings.forEach(rating => {
+      uniqueMultipliers.forEach(multiplier => {
+        const comboId = `${rating}-${multiplier}`;
+        map.set(comboId, CHART_COLORS[colorIndex % CHART_COLORS.length]);
+        colorIndex++;
+      });
+    });
+    
+    return map;
+  }, [uniqueRatings, uniqueMultipliers]);
 
-    // Group tests by date and rating-multiplier combination
-    const dataByDate = new Map<string, TripTimeDataPoint>();
+  const chartData = useMemo(() => {
+    if (selectedRatings.size === 0 || selectedMultipliers.size === 0) return [];
+
+    const dataPoints: TripTimeDataPoint[] = [];
 
     mcbTests.forEach((test) => {
       const rating = String(test.rating || 'Unknown');
       const multiplier = String(test.multiplier || 'Unknown');
-      const comboId = `${rating}-${multiplier}`;
       
-      if (!selectedCombinations.has(comboId)) return;
+      if (!selectedRatings.has(rating) || !selectedMultipliers.has(multiplier)) return;
 
       // Parse the date from the test data dataset
       const testDate = test.dataset && test.dataset.length > 0 ? test.dataset[0].datetime : null;
-      const date = testDate ? format(parseISO(testDate), "yyyy-MM-dd") : 'Unknown';
-      const timestamp = testDate ? parseISO(testDate).getTime() : 0;
+      if (!testDate) return;
+
+      const timestamp = parseISO(testDate).getTime();
+      const comboId = `${rating}-${multiplier}`;
       
-      if (!dataByDate.has(date)) {
-        dataByDate.set(date, {
-          date,
-          timestamp,
-          displayDate: testDate ? format(parseISO(testDate), "MMM dd") : date,
-        });
+      dataPoints.push({
+        date: format(parseISO(testDate), "yyyy-MM-dd"),
+        timestamp,
+        tripTime: test.trip_time!,
+        rating,
+        multiplier,
+        comboId,
+        displayDate: format(parseISO(testDate), "MMM dd, yyyy"),
+      });
+    });
+
+    return dataPoints.sort((a, b) => a.timestamp - b.timestamp);
+  }, [mcbTests, selectedRatings, selectedMultipliers]);
+
+  // Group data by combination for scatter chart
+  const scatterData = useMemo(() => {
+    const grouped = new Map<string, TripTimeDataPoint[]>();
+    
+    chartData.forEach(point => {
+      if (!grouped.has(point.comboId)) {
+        grouped.set(point.comboId, []);
       }
-
-      const dataPoint = dataByDate.get(date)!;
-      
-      // Store trip time for this combination
-      dataPoint[comboId] = test.trip_time;
+      grouped.get(point.comboId)!.push(point);
     });
+    
+    return Array.from(grouped.entries()).map(([comboId, points]) => ({
+      comboId,
+      label: `${points[0].rating}A × ${points[0].multiplier}`,
+      color: colorMap.get(comboId) || CHART_COLORS[0],
+      data: points,
+    }));
+  }, [chartData, colorMap]);
 
-    return Array.from(dataByDate.values()).sort((a, b) => a.timestamp - b.timestamp);
-  }, [mcbTests, selectedCombinations]);
-
-  const chartConfig = useMemo(() => {
-    const config: any = {};
-    uniqueCombinations.forEach((combo) => {
-      config[combo.id] = {
-        label: combo.label,
-        color: combo.color,
-      };
-    });
-    return config;
-  }, [uniqueCombinations]);
-
-  const handleCombinationToggle = (comboId: string, checked: boolean) => {
-    const newSelected = new Set(selectedCombinations);
+  const handleRatingToggle = (rating: string, checked: boolean) => {
+    const newSelected = new Set(selectedRatings);
     if (checked) {
-      newSelected.add(comboId);
+      newSelected.add(rating);
     } else {
-      newSelected.delete(comboId);
+      newSelected.delete(rating);
     }
-    setSelectedCombinations(newSelected);
+    setSelectedRatings(newSelected);
+  };
+
+  const handleMultiplierToggle = (multiplier: string, checked: boolean) => {
+    const newSelected = new Set(selectedMultipliers);
+    if (checked) {
+      newSelected.add(multiplier);
+    } else {
+      newSelected.delete(multiplier);
+    }
+    setSelectedMultipliers(newSelected);
   };
 
   if (mcbTests.length === 0) {
@@ -139,87 +174,114 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
       <CardHeader>
         <CardTitle>MCB Trip Times Over Time</CardTitle>
         <CardDescription>
-          Trip times for different rating and multiplier combinations ({mcbTests.length} tests)
+          Trip times plotted by test date for different rating and multiplier combinations ({mcbTests.length} tests)
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-4">
-          <Label className="text-sm font-medium mb-2 block">
-            Select Rating × Multiplier Combinations:
-          </Label>
-          <ScrollArea className="h-32 w-full border rounded-md p-2">
-            <div className="space-y-2">
-              {uniqueCombinations.map((combo) => (
-                <div key={combo.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={combo.id}
-                    checked={selectedCombinations.has(combo.id)}
-                    onCheckedChange={(checked) => 
-                      handleCombinationToggle(combo.id, checked as boolean)
-                    }
-                  />
-                  <Label
-                    htmlFor={combo.id}
-                    className="text-sm cursor-pointer flex items-center space-x-2"
-                  >
-                    <div
-                      className="w-3 h-3 rounded-sm"
-                      style={{ backgroundColor: combo.color }}
+        <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Ratings Selection */}
+          <div>
+            <Label className="text-sm font-medium mb-2 block">
+              Select Ratings:
+            </Label>
+            <ScrollArea className="h-32 w-full border rounded-md p-2 bg-background">
+              <div className="space-y-2">
+                {uniqueRatings.map((rating) => (
+                  <div key={rating} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`rating-${rating}`}
+                      checked={selectedRatings.has(rating)}
+                      onCheckedChange={(checked) => 
+                        handleRatingToggle(rating, checked as boolean)
+                      }
                     />
-                    <span>{combo.label}</span>
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+                    <Label
+                      htmlFor={`rating-${rating}`}
+                      className="text-sm cursor-pointer"
+                    >
+                      {rating}A
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* Multipliers Selection */}
+          <div>
+            <Label className="text-sm font-medium mb-2 block">
+              Select Multipliers:
+            </Label>
+            <ScrollArea className="h-32 w-full border rounded-md p-2 bg-background">
+              <div className="space-y-2">
+                {uniqueMultipliers.map((multiplier) => (
+                  <div key={multiplier} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`multiplier-${multiplier}`}
+                      checked={selectedMultipliers.has(multiplier)}
+                      onCheckedChange={(checked) => 
+                        handleMultiplierToggle(multiplier, checked as boolean)
+                      }
+                    />
+                    <Label
+                      htmlFor={`multiplier-${multiplier}`}
+                      className="text-sm cursor-pointer"
+                    >
+                      ×{multiplier}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
 
-        {selectedCombinations.size > 0 && chartData.length > 0 ? (
-          <ChartContainer config={chartConfig} className="h-[400px]">
+        {scatterData.length > 0 && chartData.length > 0 ? (
+          <ChartContainer config={{}} className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+              <ScatterChart>
                 <XAxis 
-                  dataKey="displayDate" 
+                  type="number"
+                  dataKey="timestamp"
+                  domain={['dataMin', 'dataMax']}
+                  tickFormatter={(timestamp) => format(new Date(timestamp), "MMM dd")}
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis 
+                  type="number"
+                  dataKey="tripTime"
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                   axisLine={false}
                   label={{ value: 'Trip Time (ms)', angle: -90, position: 'insideLeft' }}
                 />
                 <Tooltip
-                  formatter={(value: any, name: string) => [
+                  formatter={(value: any, name: string, props: any) => [
                     `${value} ms`,
-                    name
+                    `${props.payload.rating}A × ${props.payload.multiplier}`
                   ]}
-                  labelFormatter={(label) => `Date: ${label}`}
+                  labelFormatter={(timestamp: number) => 
+                    `Date: ${format(new Date(timestamp), "MMM dd, yyyy")}`
+                  }
                 />
                 <Legend />
-                {uniqueCombinations
-                  .filter(combo => selectedCombinations.has(combo.id))
-                  .map((combo) => (
-                    <Line
-                      key={combo.id}
-                      type="monotone"
-                      dataKey={combo.id}
-                      name={combo.label}
-                      stroke={combo.color}
-                      strokeWidth={2}
-                      dot={{ fill: combo.color, strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: combo.color, strokeWidth: 2 }}
-                      connectNulls={false}
-                    />
-                  ))}
-              </LineChart>
+                {scatterData.map((combo) => (
+                  <Scatter
+                    key={combo.comboId}
+                    name={combo.label}
+                    data={combo.data}
+                    fill={combo.color}
+                  />
+                ))}
+              </ScatterChart>
             </ResponsiveContainer>
           </ChartContainer>
         ) : (
           <div className="h-[400px] flex items-center justify-center text-muted-foreground">
-            {selectedCombinations.size === 0 
-              ? "Please select at least one rating/multiplier combination"
+            {selectedRatings.size === 0 || selectedMultipliers.size === 0
+              ? "Please select at least one rating and one multiplier"
               : "No data available for selected combinations"
             }
           </div>
