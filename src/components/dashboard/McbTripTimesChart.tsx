@@ -102,8 +102,8 @@ export const McbTripTimesChart = ({ data }: McbTripTimesChartProps) => {
       
       if (!selectedRatings.has(rating) || !selectedMultipliers.has(multiplier)) return;
 
-      // Parse the date from the test data dataset
-      const testDate = test.dataset && test.dataset.length > 0 ? test.dataset[0].datetime : null;
+      // Parse the date - Supabase data uses meter_datetime_str, MongoDB uses dataset
+      const testDate = test.meter_datetime_str || (test.dataset && test.dataset.length > 0 ? test.dataset[0].datetime : null);
       if (!testDate) {
         console.log('No test date for test:', test);
         return;
