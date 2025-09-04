@@ -4,11 +4,9 @@ import { Clock, TestTube, TrendingUp, Zap, Target, Trophy, Thermometer } from "l
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { TestsChart } from "@/components/dashboard/TestsChart";
 import { HoursChart } from "@/components/dashboard/HoursChart";
-import { McbTripTimesChart } from "@/components/dashboard/McbTripTimesChart";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { useTestData } from "@/hooks/useTestData";
 import { DateRange } from "@/types/test-data";
-import { DbHealthIndicator } from "@/components/DbHealthIndicator";
 
 const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -29,9 +27,6 @@ const Index = () => {
           </p>
         </div>
 
-        <div className="flex justify-end">
-          <DbHealthIndicator />
-        </div>
         
         {/* Main Grid: Filters + Metrics */}
         <div className="grid gap-6 md:grid-cols-5">
@@ -212,8 +207,6 @@ const Index = () => {
           />
         </div>
 
-        {/* MCB Trip Times Chart */}
-        <McbTripTimesChart data={data} />
 
         {/* Daily Averages */}
         <div className="grid gap-6 md:grid-cols-2">
