@@ -76,10 +76,9 @@ export const getTestType = (testName: string): TestType => {
 };
 
 // Real data fetching with Supabase and fallback
-const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<TestEntry[]> => {
+const fetchRealData = async (dateRange: DateRange): Promise<TestEntry[]> => {
   console.log('[useTestData] Attempting to fetch real data (Supabase)', {
     dateRange,
-    testType,
     useRealData: config.useRealData,
     isDevelopment: config.isDevelopment,
     debugDatabase: config.debugDatabase
@@ -162,18 +161,8 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
        };
      });
 
-    // Debug: Log what test_type values we're actually getting from database
-    console.log('[useTestData] Debug - Raw database test_type values:', rows.slice(0, 5).map(r => ({ name: r.name, test_type: r.test_type })));
-    
-    // Apply client-side test type filter if needed
-    const filtered = testType === 'All' ? mapped : mapped.filter(r => {
-      const dbTestType = r.test_type || '';
-      console.log('[useTestData] Filtering test:', r.name, 'db test_type:', dbTestType, 'filter:', testType);
-      return dbTestType === testType;
-    });
-    console.log(`[useTestData] Successfully fetched ${filtered.length} real entries from Supabase (raw ${rows.length})`);
-    console.log('[useTestData] Sample RCD data for debugging:', filtered.filter(f => f.name && (f.name.includes('sinusoidal') || f.name.includes('composite') || f.name.includes('pulsating') || f.name.includes('smooth'))).slice(0, 3));
-    return filtered;
+    console.log(`[useTestData] Successfully fetched ${mapped.length} real entries from Supabase`);
+    return mapped;
   } catch (error) {
     console.error('[useTestData] Supabase fetch failed, falling back to mock data:', error);
 
@@ -181,14 +170,10 @@ const fetchRealData = async (dateRange: DateRange, testType: TestType): Promise<
     const mockData = generateMockData();
     const filteredMockData = mockData.filter(test => {
       const testDate = new Date(test.start * 1000);
-      const isInDateRange = isWithinInterval(testDate, {
+      return isWithinInterval(testDate, {
         start: dateRange.from,
         end: dateRange.to
       });
-
-      if (!isInDateRange) return false;
-      if (testType === "All") return true;
-      return getTestType(test.name) === testType;
     });
     console.log(`[useTestData] Using ${filteredMockData.length} filtered mock entries as fallback`);
     return filteredMockData;
@@ -207,7 +192,7 @@ export const useTestData = (dateRange: DateRange) => {
   // Fetch real data using React Query (enabled based on config)
   const { data: realData, isLoading, error } = useQuery({
     queryKey: ['testData', dateRange.from.toISOString(), dateRange.to.toISOString()],
-    queryFn: () => fetchRealData(dateRange, "All"),
+    queryFn: () => fetchRealData(dateRange),
     enabled: config.useRealData, // Controlled by environment variable
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
