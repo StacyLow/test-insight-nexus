@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -16,130 +16,40 @@ export type Database = {
     Tables: {
       test_data: {
         Row: {
-          amplitude: number | null
-          command: number | null
           created_at: string
-          dataset: Json | null
           datetime: string
-          description: string | null
-          document_type: string | null
           duration: number
-          error: boolean | null
-          events: Json | null
-          failed: boolean | null
-          frequency: number | null
           id: string
-          metadata: Json | null
-          meter_datetime_str: string | null
-          meter_firmware_main: string | null
-          meter_firmware_ripple: string | null
-          meter_serial_number: string | null
-          multiplier: number | null
-          name: string
-          originalname: string | null
-          outcome: string | null
-          passed: boolean | null
+          multiplier: string | null
+          object_id: string | null
           rating: string | null
-          results: Json | null
-          session_uuid4: string | null
-          skipped: boolean | null
-          start_time: number | null
-          state: string | null
-          stop_time: number | null
-          temperature: number | null
           test_type: string | null
           trip_time: number | null
           trip_value: number | null
-          updated_at: string
-          upper_limit: number | null
-          waveform_ids: Json | null
-          xray_id: string | null
-          xray_issue_id: string | null
-          xray_key: string | null
         }
         Insert: {
-          amplitude?: number | null
-          command?: number | null
           created_at?: string
-          dataset?: Json | null
           datetime: string
-          description?: string | null
-          document_type?: string | null
           duration: number
-          error?: boolean | null
-          events?: Json | null
-          failed?: boolean | null
-          frequency?: number | null
           id?: string
-          metadata?: Json | null
-          meter_datetime_str?: string | null
-          meter_firmware_main?: string | null
-          meter_firmware_ripple?: string | null
-          meter_serial_number?: string | null
-          multiplier?: number | null
-          name: string
-          originalname?: string | null
-          outcome?: string | null
-          passed?: boolean | null
+          multiplier?: string | null
+          object_id?: string | null
           rating?: string | null
-          results?: Json | null
-          session_uuid4?: string | null
-          skipped?: boolean | null
-          start_time?: number | null
-          state?: string | null
-          stop_time?: number | null
-          temperature?: number | null
           test_type?: string | null
           trip_time?: number | null
           trip_value?: number | null
-          updated_at?: string
-          upper_limit?: number | null
-          waveform_ids?: Json | null
-          xray_id?: string | null
-          xray_issue_id?: string | null
-          xray_key?: string | null
         }
         Update: {
-          amplitude?: number | null
-          command?: number | null
           created_at?: string
-          dataset?: Json | null
           datetime?: string
-          description?: string | null
-          document_type?: string | null
           duration?: number
-          error?: boolean | null
-          events?: Json | null
-          failed?: boolean | null
-          frequency?: number | null
           id?: string
-          metadata?: Json | null
-          meter_datetime_str?: string | null
-          meter_firmware_main?: string | null
-          meter_firmware_ripple?: string | null
-          meter_serial_number?: string | null
-          multiplier?: number | null
-          name?: string
-          originalname?: string | null
-          outcome?: string | null
-          passed?: boolean | null
+          multiplier?: string | null
+          object_id?: string | null
           rating?: string | null
-          results?: Json | null
-          session_uuid4?: string | null
-          skipped?: boolean | null
-          start_time?: number | null
-          state?: string | null
-          stop_time?: number | null
-          temperature?: number | null
           test_type?: string | null
           trip_time?: number | null
           trip_value?: number | null
-          updated_at?: string
-          upper_limit?: number | null
-          waveform_ids?: Json | null
-          xray_id?: string | null
-          xray_issue_id?: string | null
-          xray_key?: string | null
         }
         Relationships: []
       }

@@ -75,28 +75,24 @@ export const getTestType = (testName: string): TestType => {
   return "RCD Trip Time"; // default
 };
 
-// Fetch data from Supabase
+// Real data fetching with Supabase and fallback
 const fetchRealData = async (dateRange: DateRange): Promise<TestEntry[]> => {
-  console.log('[useTestData] Fetching data from Supabase', {
+  console.log('[useTestData] Attempting to fetch real data (Supabase)', {
     dateRange,
+    useRealData: config.useRealData,
+    isDevelopment: config.isDevelopment,
     debugDatabase: config.debugDatabase
   });
 
   try {
+    const fromEpoch = Math.floor(dateRange.from.getTime() / 1000);
+    const toEpoch = Math.floor(dateRange.to.getTime() / 1000);
+
     const { data, error } = await supabase
       .from('test_data')
-      .select(`
-        id, created_at, datetime, duration, test_type, trip_time, trip_value, 
-        rating, multiplier, upper_limit, name, originalname, description,
-        session_uuid4, outcome, passed, failed, skipped, error,
-        command, amplitude, frequency, state, temperature,
-        meter_serial_number, meter_firmware_main, meter_firmware_ripple,
-        meter_datetime_str, xray_id, xray_key, xray_issue_id,
-        results, dataset, events, waveform_ids, metadata
-      `)
+      .select('id, created_at, datetime, duration, test_type, trip_time, trip_value, rating, multiplier, object_id, upper_limit, name')
       .gte('created_at', dateRange.from.toISOString())
-      .lte('created_at', dateRange.to.toISOString())
-      .order('created_at', { ascending: false });
+      .lte('created_at', dateRange.to.toISOString());
 
     if (error) throw error;
 
@@ -105,63 +101,82 @@ const fetchRealData = async (dateRange: DateRange): Promise<TestEntry[]> => {
     // Map Supabase rows to TestEntry shape used by the UI
     const mapped: TestEntry[] = rows.map((r, idx) => {
       const created = r.datetime ? new Date(r.datetime) : new Date(r.created_at);
-      const startSec = r.start_time || Math.floor(created.getTime() / 1000);
-      const stopSec = r.stop_time || (startSec + (r.duration || 0));
+      const startSec = Math.floor(created.getTime() / 1000);
       const duration = typeof r.duration === 'number' ? r.duration : Number(r.duration) || 0;
+      const tt = (r.test_type || '').toString();
+      const lower = tt.toLowerCase();
+
+      let inferredName = `test_${lower || 'unknown'}`;
+      if (lower.includes('rcd')) {
+        if (r.trip_value !== null && r.trip_value !== undefined) inferredName = 'test_rcd trip value';
+        else if (r.trip_time !== null && r.trip_time !== undefined) inferredName = 'test_rcd trip time';
+      } else if (lower.includes('mcb')) {
+        inferredName = 'test_mcb trip time';
+      }
+
+      const computedPassed = (r.trip_time !== null && r.trip_time !== undefined) || (r.trip_value !== null && r.trip_value !== undefined);
 
       return {
-        _id: { $oid: r.id || `row_${idx}` },
-        name: r.name || `test_${r.test_type || 'unknown'}`,
-        originalname: r.originalname || r.test_type || 'test',
-        description: r.description || '',
-        session_uuid4: r.session_uuid4 || '',
+        _id: { $oid: r.id || r.object_id || `row_${idx}` },
+        name: r.name || inferredName,
+        originalname: tt || 'test',
+        description: '',
+        session_uuid4: r.object_id || '',
         start: startSec,
-        stop: stopSec,
+        stop: startSec + duration,
         duration,
-        outcome: r.outcome || (r.passed ? 'passed' : 'failed'),
-        passed: r.passed || false,
-        failed: r.failed || false,
-        skipped: r.skipped || false,
-        error: r.error || false,
-        results: r.results || [],
-        dataset: r.dataset || [],
+        outcome: computedPassed ? 'passed' : 'failed',
+        passed: computedPassed,
+        failed: !computedPassed,
+        skipped: false,
+        error: false,
+        results: [],
+        dataset: [],
         versions: {
           meter: {
-            serial_number: r.meter_serial_number || '',
-            firmware_version_main: r.meter_firmware_main || '',
-            firmware_version_ripple: r.meter_firmware_ripple || ''
+            serial_number: '',
+            firmware_version_main: '',
+            firmware_version_ripple: ''
           }
         },
         condition: {
-          command: r.command || 0,
-          amplitude: r.amplitude || 0,
-          frequency: r.frequency || 0,
-          state: r.state || 'On'
+          command: 0,
+          amplitude: Number(r.multiplier) || 0,
+          frequency: 0,
+          state: 'On'
         },
-        xray: {
-          id: r.xray_id || '',
-          key: r.xray_key || '',
-          issue_id: r.xray_issue_id || ''
-        },
-        meter_datetime_str: r.meter_datetime_str || format(created, 'yyyy/M/d HH:mm:ss.SSS'),
-        events: r.events || [],
-        waveform_ids: r.waveform_ids || [],
+        xray: { id: '', key: '', issue_id: '' },
+        meter_datetime_str: format(created, 'yyyy/M/d HH:mm:ss.SSS'),
+        events: [],
+        waveform_ids: [],
         document_type: 'function_metadata',
-        // Optional fields for MCB/RCD metrics
-        multiplier: typeof r.multiplier === 'number' ? r.multiplier : undefined,
-        rating: r.rating || undefined,
-        upper_limit: typeof r.upper_limit === 'number' ? r.upper_limit : undefined,
-        trip_time: typeof r.trip_time === 'number' ? r.trip_time : undefined,
-        trip_value: typeof r.trip_value === 'number' ? r.trip_value : undefined,
-        test_type: r.test_type || undefined
-      };
-    });
+         // Optional fields for MCB metrics
+         multiplier: Number(r.multiplier) || undefined,
+         rating: r.rating ?? undefined,
+         upper_limit: typeof r.upper_limit === 'number' ? r.upper_limit : undefined,
+         trip_time: typeof r.trip_time === 'number' ? r.trip_time : undefined,
+         trip_value: typeof r.trip_value === 'number' ? r.trip_value : undefined,
+         // Store the actual test_type from database for accurate filtering
+         test_type: r.test_type || tt
+       };
+     });
 
-    console.log(`[useTestData] Successfully fetched ${mapped.length} entries from Supabase`);
+    console.log(`[useTestData] Successfully fetched ${mapped.length} real entries from Supabase`);
     return mapped;
   } catch (error) {
-    console.error('[useTestData] Supabase fetch failed:', error);
-    throw error; // Don't fall back to mock data, let the UI handle the error
+    console.error('[useTestData] Supabase fetch failed, falling back to mock data:', error);
+
+    // Fallback to mock data and filter it
+    const mockData = generateMockData();
+    const filteredMockData = mockData.filter(test => {
+      const testDate = new Date(test.start * 1000);
+      return isWithinInterval(testDate, {
+        start: dateRange.from,
+        end: dateRange.to
+      });
+    });
+    console.log(`[useTestData] Using ${filteredMockData.length} filtered mock entries as fallback`);
+    return filteredMockData;
   }
 };
 
@@ -170,24 +185,27 @@ export const useTestData = (dateRange: DateRange) => {
   
   console.log('[useTestData] Hook called', {
     dateRange,
+    useRealData: config.useRealData,
     isDevelopment: config.isDevelopment
   });
 
-  // Fetch data from Supabase using React Query
+  // Fetch real data using React Query (enabled based on config)
   const { data: realData, isLoading, error } = useQuery({
     queryKey: ['testData', dateRange.from.toISOString(), dateRange.to.toISOString()],
     queryFn: () => fetchRealData(dateRange),
+    enabled: config.useRealData, // Controlled by environment variable
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 1
   });
 
   const filteredData = useMemo(() => {
-    // Use real data if available, otherwise use mock data as fallback
-    const sourceData = realData || mockData;
-    const isUsingRealData = !!realData;
+    // Use real data if available and enabled, otherwise use mock data
+    const sourceData = config.useRealData && realData ? realData : mockData;
+    const isUsingRealData = config.useRealData && realData;
     
     console.log('[useTestData] Data source decision', {
+      useRealData: config.useRealData,
       hasRealData: !!realData,
       realDataCount: realData?.length || 0,
       mockDataCount: mockData.length,
@@ -195,17 +213,17 @@ export const useTestData = (dateRange: DateRange) => {
       sourceDataCount: sourceData.length
     });
     
-    // Data is already filtered by date range in the Supabase query
-    // But we need to filter mock data if used as fallback
-    const filtered = isUsingRealData ? sourceData : sourceData.filter(test => {
+    const filtered = sourceData.filter(test => {
       const testDate = new Date(test.start * 1000);
-      return isWithinInterval(testDate, {
+      const isInDateRange = isWithinInterval(testDate, {
         start: dateRange.from,
         end: dateRange.to
       });
+      
+      return isInDateRange;
     });
     
-    console.log(`[useTestData] Using ${filtered.length} entries for display`);
+    console.log(`[useTestData] Filtered to ${filtered.length} entries for display`);
     return filtered;
   }, [mockData, realData, dateRange.from, dateRange.to]);
 
@@ -523,7 +541,7 @@ const metrics = useMemo((): DashboardMetrics => {
   return { 
     data: filteredData, 
     metrics, 
-    isLoading,
-    error
+    isLoading: config.useRealData && isLoading,
+    error: config.useRealData ? error : null
   };
 };

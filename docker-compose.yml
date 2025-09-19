@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5010:5010"   # Frontend
+      - "3001:3001"   # Backend API
+    environment:
+      - NODE_ENV=production
+      - FRONTEND_URL=http://localhost:5010
+    restart: unless-stopped
+    
